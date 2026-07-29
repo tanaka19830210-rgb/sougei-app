@@ -1,0 +1,11 @@
+# このアプリは npm の部品を使いませんが、まちがって入っても上げないようにしておく
+node_modules/
+
+# パソコンが勝手に作るファイル
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 作業中の控え
+*.log
+*.bak

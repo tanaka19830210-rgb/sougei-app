@@ -1,0 +1,13 @@
+{
+  "name": "soutai-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "送迎表作成アプリ（素のHTML+CSS+ESモジュール。npmで入れる部品はありません）",
+  "scripts": {
+    "test": "node test/run.js",
+    "serve": "node tools/serve.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "facilityId": "toshimatsu",
+  "updatedAt": "2026-07-29T00:00:00.000Z",
+  "drivers": [
+    { "id": "d1", "name": "村上", "initial": "村", "color": "green" },
+    { "id": "d2", "name": "岡", "initial": "岡", "color": "blue" }
+  ]
+}

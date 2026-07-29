@@ -1,0 +1,86 @@
+/* ============================================================
+   共通の見た目（色・ボタン・ヘッダー・お知らせ・確認ダイアログ）
+   プロトタイプ（送迎表作成アプリ_プロトv3.html）の見た目をそのまま使う。
+   ============================================================ */
+
+:root{
+  --green:#4fb246; --green-dark:#3d8f37; --green-pale:#eaf6e9;
+  --orange:#f0a830; --orange-pale:#fdf3e0;
+  --blue:#7faad5; --blue-pale:#eef4fa;
+  --pink:#e084b3; --pink-pale:#fbeef5;
+  --text:#333333; --sub:#666666; --line:#e0e4e0; --bg:#eef1ee;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{font-family:'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+  color:var(--text);background:var(--bg);font-size:16px;}
+
+/* ---------- ヘッダー ---------- */
+header{
+  background:var(--green);color:#fff;padding:10px 16px;
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:100;
+}
+.title{font-weight:700;font-size:20px;display:flex;align-items:center;gap:9px;}
+.title svg{width:23px;height:23px;fill:#fff;opacity:.9;}
+.title small{font-weight:400;font-size:14px;opacity:.85;}
+.spacer{flex:1;}
+
+/* ---------- ボタン（指で押せる大きさ：たて48px以上） ---------- */
+.btn{
+  font-family:inherit;font-size:16px;font-weight:500;border:none;border-radius:10px;
+  padding:12px 17px;background:rgba(255,255,255,.18);color:#fff;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;min-height:48px;white-space:nowrap;
+  text-decoration:none;
+}
+.btn:active{transform:translateY(1px);}
+.btn:disabled{opacity:.4;}
+.btn.solid{background:#fff;color:var(--green-dark);font-weight:700;}
+.btn.outline{background:transparent;border:2px solid rgba(255,255,255,.7);}
+.btn svg{width:18px;height:18px;}
+/* 白い画面の中に置くボタン */
+.btn.plain{background:#f1f3f1;color:var(--sub);}
+.btn.go{background:var(--green);color:#fff;font-weight:700;}
+.btn.warnbtn{background:var(--orange);color:#fff;font-weight:700;}
+.btn.danger{background:#fdecea;color:#c0392b;font-weight:700;}
+
+/* ---------- 保存先の表示（お試しモードの札） ---------- */
+.modebadge{
+  font-size:13px;font-weight:700;border-radius:20px;padding:7px 13px;
+  background:rgba(255,255,255,.22);color:#fff;white-space:nowrap;
+}
+.modebadge.local{background:var(--orange);color:#fff;}
+
+/* ---------- お知らせ（トースト） ---------- */
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);
+  background:var(--text);color:#fff;padding:14px 22px;border-radius:12px;font-size:16px;
+  font-weight:500;opacity:0;transition:.25s;z-index:900;pointer-events:none;
+  max-width:86vw;text-align:center;line-height:1.55;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.warn{background:var(--orange);}
+#toast.error{background:#c0392b;}
+
+/* ---------- 確認ダイアログ ---------- */
+.veil{position:fixed;inset:0;background:rgba(30,36,30,.5);display:none;
+  align-items:center;justify-content:center;z-index:950;padding:20px;}
+.veil.show{display:flex;}
+.dialog{background:#fff;border-radius:16px;padding:24px;max-width:470px;width:100%;}
+.dialog h3{margin:0 0 10px;font-size:19px;display:flex;align-items:center;gap:9px;}
+.dialog h3 svg{width:23px;height:23px;fill:var(--orange);flex:none;}
+.dialog p{margin:0 0 20px;line-height:1.75;color:var(--sub);}
+.dialog p b{color:var(--text);}
+.dialog-btns{display:flex;gap:10px;}
+.dialog-btns .btn{flex:1;justify-content:center;background:#f1f3f1;color:var(--sub);}
+.dialog-btns .btn.go{background:var(--orange);color:#fff;font-weight:700;}
+
+/* ---------- 読みこみ中・エラーの帯 ---------- */
+.banner{padding:14px 16px;font-size:15px;line-height:1.7;background:#fff;
+  border-bottom:1px solid var(--line);}
+.banner.warn{background:var(--orange-pale);color:#8a5b00;}
+.banner.error{background:#fdecea;color:#992d22;}
+.banner.hide{display:none;}
+.banner b{font-weight:700;}
+
+/* ---------- 画面のあいだの行き先リンク ---------- */
+.navlinks{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;}}

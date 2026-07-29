@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>設定｜送迎表作成</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/form.css">
+</head>
+<body>
+
+<header>
+  <div class="title">
+    <svg viewBox="0 0 24 24"><path d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.4 4c0 .5 0 .9-.1 1.3l2.1 1.6-2 3.5-2.5-1a7.6 7.6 0 01-2.2 1.3L15.3 22h-4l-.4-2.3a7.6 7.6 0 01-2.2-1.3l-2.5 1-2-3.5 2.1-1.6a8.2 8.2 0 010-2.6L4.2 10l2-3.5 2.5 1A7.6 7.6 0 0110.9 6l.4-2.3h4l.4 2.3c.8.3 1.5.7 2.2 1.3l2.5-1 2 3.5-2.1 1.6c.1.4.1.8.1 1.3z"/></svg>
+    設定 <small>送迎表作成</small>
+  </div>
+  <span class="modebadge" id="modebadge"></span>
+  <div class="spacer"></div>
+  <a class="btn outline" href="index.html">割り当て画面へ</a>
+  <a class="btn outline" href="masters.html">マスタ編集へ</a>
+</header>
+
+<div class="banner hide" id="banner"></div>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>いまの保存先</h2>
+    <p class="lead" id="mode"></p>
+  </div>
+
+  <div class="card">
+    <h2>データ用リポジトリ（GitHub）</h2>
+    <p class="lead">
+      送迎表のデータを入れておく、GitHub の <b>private（非公開）</b>リポジトリを指定します。
+      作り方は README に手順があります。
+    </p>
+
+    <div class="field">
+      <label for="repo">リポジトリ名</label>
+      <input id="repo" type="text" inputmode="url" placeholder="例：tanaka-hiroshima/soutai-data" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <p class="hint">「アカウント名 / リポジトリ名」の形で入れます。GitHubのページのURLの後ろの部分です。</p>
+    </div>
+
+    <div class="field">
+      <label for="branch">ブランチ</label>
+      <input id="branch" type="text" placeholder="main" autocapitalize="off" autocomplete="off" spellcheck="false">
+      <p class="hint">わからなければ <b>main</b> のままにしてください。</p>
+    </div>
+
+    <div class="field row2">
+      <div>
+        <label for="token">アクセストークン（Personal Access Token）</label>
+        <input id="token" type="password" placeholder="github_pat_ ではじまる文字" autocapitalize="off" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="btn plain" id="reveal" type="button">見る</button>
+    </div>
+
+    <div class="field">
+      <label for="editor">あなたのお名前（だれが保存したかの記録用）</label>
+      <input id="editor" type="text" placeholder="例：田中">
+      <p class="hint">GitHub の履歴に残ります。空でもかまいません。</p>
+    </div>
+
+    <div class="field">
+      <label for="facility">事業所</label>
+      <select id="facility"></select>
+      <p class="hint">この端末で作る事業所をえらびます。あとから割り当て画面でも変えられます。</p>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn go" id="save" type="button">この端末に保存する</button>
+      <button class="btn plain" id="check" type="button">つながるか試す</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>トークンのあつかい（大切なお願い）</h2>
+    <div class="caution">
+      トークンは「あなたの代わりに GitHub をさわれる鍵」です。次のことを守ってください。
+      <ul>
+        <li><b>共用のタブレットやパソコンには入れないでください。</b>入れる端末は、送迎表を作る人のものだけにします。</li>
+        <li>権限は最小にします。<b>Contents だけを Read and write</b>、対象は<b>データ用リポジトリ1つだけ</b>にします。</li>
+        <li>他の人に見せない・送らない・写真に撮らないでください。画面に出すときは「見る」ボタンを使い、すぐ隠します。</li>
+        <li>漏れたかもしれないときは、GitHub の画面でそのトークンを <b>Revoke（失効）</b>させて、新しく作り直します。</li>
+        <li>使い終わった端末では、下の「この端末からトークンを消す」を押してください。</li>
+        <li>期限（Expiration）を付けておくと、うっかり残っても自動で使えなくなります。</li>
+      </ul>
+    </div>
+    <div class="btnrow">
+      <button class="btn danger" id="forget" type="button">この端末からトークンを消す</button>
+      <button class="btn plain" id="clearlocal" type="button">お試しモードの控えを消す</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>読み書きするファイル</h2>
+    <p class="lead">
+      アプリが壊れても、データ用リポジトリのこのファイルを開けば送迎表は残っています。
+    </p>
+    <ul id="pathlist" style="font-size:14px;line-height:2;"></ul>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+<div class="veil" id="veil"></div>
+
+<script type="module">
+  import { start } from './js/ui/settingsScreen.js';
+  start();
+</script>
+</body>
+</html>

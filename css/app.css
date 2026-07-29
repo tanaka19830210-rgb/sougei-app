@@ -1,0 +1,163 @@
+/* ============================================================
+   割り当て画面（プロトv3の見た目をそのまま移したもの）
+   ============================================================ */
+
+/* ---------- 操作バー ---------- */
+.toolbar{
+  background:#fff;border-bottom:1px solid var(--line);padding:10px 16px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:68px;z-index:99;
+}
+.weeknav{display:flex;align-items:center;gap:6px;}
+.weeknav button{
+  font-family:inherit;font-size:20px;font-weight:700;color:var(--sub);
+  border:1.5px solid #dfe3df;background:#fff;border-radius:10px;
+  width:46px;height:46px;cursor:pointer;line-height:1;
+}
+.weeknav button:active{background:#f1f3f1;}
+#weeklabel{font-size:17px;font-weight:700;min-width:172px;text-align:center;}
+#weeklabel small{display:block;font-size:12px;font-weight:400;color:var(--sub);}
+.seg{display:flex;background:#f1f3f1;border-radius:11px;padding:3px;gap:2px;}
+.seg button{
+  font-family:inherit;font-size:17px;font-weight:500;border:none;background:transparent;
+  color:var(--sub);padding:6px 14px;border-radius:9px;cursor:pointer;min-height:48px;min-width:58px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1.1;
+}
+.seg button b{font-size:17px;font-weight:700;}
+.seg button i{font-style:normal;font-size:12px;font-weight:400;opacity:.75;}
+.seg button[aria-pressed="true"]{background:var(--green);color:#fff;}
+/* 迎え・送り：オレンジで目立たせる */
+.seg.dir{background:var(--orange-pale);border:2px solid var(--orange);padding:4px;}
+.seg.dir button{color:#b57a14;font-weight:700;font-size:18px;padding:10px 26px;}
+.seg.dir button[aria-pressed="true"]{background:var(--orange);color:#fff;}
+#savestate{font-size:14px;font-weight:500;}
+
+/* ---------- 使い方ガイド ---------- */
+.guide{background:#fff;border-bottom:1px solid var(--line);padding:10px 16px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:15px;}
+.guide.hide{display:none;}
+.step{display:inline-flex;align-items:center;gap:6px;background:var(--green-pale);
+  border-radius:20px;padding:6px 14px 6px 8px;color:var(--green-dark);font-weight:500;}
+.step i{background:var(--green);color:#fff;width:22px;height:22px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;font-style:normal;
+  font-size:13px;font-weight:700;}
+.guide .arrow{color:#bcc4bc;}
+.guide .btn{background:#f1f3f1;color:var(--sub);min-height:40px;padding:8px 14px;font-size:14px;}
+
+/* ---------- 行き先バー（事業所のえらび・ほかの画面へ） ---------- */
+.navbar{background:#fff;border-bottom:1px solid var(--line);padding:8px 16px;}
+.navbar .navlinks label{font-size:13px;color:var(--sub);display:inline-flex;align-items:center;gap:6px;}
+.navbar .btn{min-height:44px;padding:9px 14px;font-size:15px;}
+
+/* ---------- レイアウト ---------- */
+.stage{display:flex;gap:14px;padding:14px;align-items:flex-start;}
+.pool-wrap{width:300px;flex:none;background:#fff;border-radius:14px;
+  border:1px solid var(--line);padding:13px;position:sticky;top:196px;}
+.pool-wrap h2{font-size:16px;margin:0 0 3px;font-weight:700;display:flex;align-items:center;gap:7px;}
+.pool-wrap h2 svg{width:19px;height:19px;fill:var(--green);}
+.pool-wrap .note{font-size:13px;color:var(--sub);margin:0 0 10px;line-height:1.55;}
+.pool{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;
+  min-height:110px;max-height:52vh;overflow:auto;align-content:flex-start;
+  border-radius:10px;padding:8px;background:#fafbfa;border:2px dashed #d8ded8;
+}
+.pool.valid{border-color:var(--green);background:var(--green-pale);}
+.pool:empty{display:flex;align-items:center;justify-content:center;}
+.pool:empty::after{content:'ぜんぶ乗りました';font-size:14px;color:var(--sub);}
+
+.vans{flex:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;}
+.van{background:#fff;border-radius:14px;border:1px solid var(--line);padding:13px 15px 14px;}
+.van-head{display:flex;align-items:baseline;gap:10px;}
+.van-name{font-weight:700;font-size:18px;}
+.van-count{margin-left:auto;font-size:18px;font-weight:500;color:var(--sub);}
+.van-count b{color:var(--text);font-weight:700;}
+.van-count.full,.van-count.full b{color:var(--orange);}
+.van-sub{font-size:13px;color:var(--sub);margin:4px 0 11px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.van-sub span{display:inline-flex;align-items:center;gap:5px;}
+.van-sub svg{width:15px;height:15px;fill:var(--sub);}
+/* その日の運転手（えらぶと紙の運転手バッジに出る） */
+.drvpick{font-family:inherit;font-size:14px;color:var(--text);background:#fff;
+  border:1.5px solid #dfe3df;border-radius:9px;min-height:44px;padding:6px 8px;}
+.drvpick:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-pale);}
+
+/* ---------- 停車順の行 ---------- */
+.row{display:grid;align-items:center;gap:8px;margin-bottom:7px;}
+.row.empty{grid-template-columns:30px 1fr;}
+.row.filled{grid-template-columns:30px 104px 1fr 48px;}
+.no{font-size:15px;font-weight:700;color:#a8b0a8;text-align:center;}
+.slot{
+  min-height:50px;border-radius:11px;border:2px dashed #cfd6cf;background:#fbfcfb;
+  display:flex;align-items:center;justify-content:center;font-size:14px;color:#a8b0a8;
+}
+.slot.filled{border:none;background:transparent;min-height:0;justify-content:stretch;}
+.slot.valid{border-color:var(--green);background:var(--green-pale);border-style:solid;
+  color:var(--green-dark);font-weight:700;}
+.slot.filled.valid{border:2px solid var(--green);background:var(--green-pale);border-radius:11px;}
+.time{
+  font-family:inherit;font-size:17px;font-weight:700;color:var(--text);text-align:center;
+  border:1.5px solid #dfe3df;border-radius:9px;background:#fff;
+  min-height:48px;padding:4px 4px;width:100%;min-width:0;
+}
+.time:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-pale);}
+/* 当日の変更（紙では赤文字になる） */
+.chg{
+  font-family:inherit;font-size:12px;font-weight:700;line-height:1.2;
+  border:1.5px solid #dfe3df;background:#fff;color:#a8b0a8;border-radius:9px;
+  min-height:48px;width:100%;cursor:pointer;padding:2px;
+}
+.chg[aria-pressed="true"]{background:#fdecea;border-color:#e2a49b;color:#c0392b;}
+
+/* ---------- 車両ごとのメモ ---------- */
+.vanmemo{margin-top:11px;padding-top:11px;border-top:1px dashed var(--line);}
+.vanmemo label{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--sub);
+  font-weight:500;margin-bottom:5px;}
+.vanmemo svg{width:14px;height:14px;fill:var(--sub);}
+.vanmemo textarea{
+  font-family:inherit;font-size:15px;color:var(--text);width:100%;
+  border:1.5px solid #dfe3df;border-radius:9px;background:#fff;
+  padding:9px 10px;min-height:56px;resize:vertical;line-height:1.5;
+}
+.vanmemo textarea:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-pale);}
+.vanmemo textarea::placeholder{color:#b8bfb8;font-size:14px;}
+
+/* ---------- 利用者タイル ---------- */
+.tile{
+  width:100%;min-height:48px;border-radius:10px;background:#fff;
+  border:1.5px solid #e3e6e3;border-left:8px solid var(--area);
+  box-shadow:0 1px 2px rgba(0,0,0,.06);padding:5px 7px 5px 8px;
+  display:flex;flex-direction:column;justify-content:center;gap:1px;
+  touch-action:none;cursor:grab;user-select:none;
+}
+.tile .nm{font-weight:700;font-size:15px;line-height:1.2;}
+.slot.filled .tile .nm{font-size:17px;}
+.tile .meta{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--sub);}
+.tile .wc-ico{width:13px;height:13px;fill:var(--area);margin-left:auto;}
+.tile.ghost{opacity:.28;}
+.tile.flying{position:fixed;z-index:999;pointer-events:none;margin:0;
+  box-shadow:0 12px 26px rgba(0,0,0,.28);transform:scale(1.06) rotate(-1.5deg);}
+
+/* ---------- この日のメモ（紙のいちばん下に出る欄） ---------- */
+.daynotes{margin:0 14px 24px;background:#fff;border-radius:14px;border:1px solid var(--line);padding:13px 15px 16px;}
+.daynotes h2{font-size:16px;margin:0 0 3px;font-weight:700;}
+.daynotes .note{font-size:13px;color:var(--sub);margin:0 0 10px;line-height:1.55;}
+.notelist{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.noteitem{display:flex;align-items:center;gap:10px;}
+.noteitem .chip{font-size:14px;font-weight:700;border-radius:8px;padding:9px 12px;flex:1;line-height:1.5;}
+.noteitem .chip.hand{background:var(--pink-pale);color:#a34c7c;border:1.5px solid var(--pink);}
+.noteitem .chip.ext{background:var(--blue-pale);color:#3b6389;border:1.5px solid var(--blue);}
+.noteitem .chip.plain{background:#f7f8f7;color:var(--text);border:1.5px solid var(--line);font-weight:500;}
+.noteitem .btn{min-height:48px;}
+.noteadd{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.noteadd select,.noteadd input{
+  font-family:inherit;font-size:16px;color:var(--text);background:#fff;
+  border:1.5px solid #dfe3df;border-radius:9px;min-height:48px;padding:8px 10px;
+}
+.noteadd input{flex:1;min-width:220px;}
+.noteadd select:focus,.noteadd input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-pale);}
+
+/* ---------- せまい画面（iPadをたてにしたとき） ---------- */
+@media (max-width:900px){
+  .stage{flex-direction:column;}
+  .pool-wrap{width:100%;position:static;}
+  .pool{max-height:34vh;grid-template-columns:repeat(3,minmax(0,1fr));}
+  .vans{width:100%;}
+}

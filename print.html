@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>送迎表 印刷（A4たて・6台）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/print.css">
+</head>
+<body>
+
+<div class="bar">
+  <h1><span></span>送迎表 印刷</h1>
+  <div class="who" id="weeklabel"></div>
+  <div class="sp"></div>
+  <a class="btn back" id="back" href="index.html">割り当て画面にもどる</a>
+  <button id="printbtn">印刷する</button>
+</div>
+
+<div class="banner hide" id="banner"></div>
+
+<div class="stack"><div class="page" id="page"></div></div>
+
+<script type="module">
+  import { start } from './js/ui/printScreen.js';
+  start();
+</script>
+</body>
+</html>

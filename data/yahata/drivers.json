@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "facilityId": "yahata",
+  "updatedAt": "2026-07-29T00:00:00.000Z",
+  "drivers": [
+    { "id": "d1", "name": "山田", "initial": "山", "color": "green" },
+    { "id": "d2", "name": "佐々木", "initial": "佐", "color": "blue" },
+    { "id": "d3", "name": "大西", "initial": "大", "color": "orange" },
+    { "id": "d4", "name": "木下", "initial": "木", "color": "pink" },
+    { "id": "d5", "name": "高橋", "initial": "高", "color": "purple" },
+    { "id": "d6", "name": "藤井", "initial": "藤", "color": "teal" }
+  ]
+}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マスタ編集｜送迎表作成</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/form.css">
+</head>
+<body>
+
+<header>
+  <div class="title">
+    <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zm0 2c-4 0-7 2-7 4.5V21h14v-2.5c0-2.5-3-4.5-7-4.5z"/></svg>
+    マスタ編集 <small id="facilityname">読みこみ中…</small>
+  </div>
+  <span class="modebadge" id="modebadge"></span>
+  <div class="spacer"></div>
+  <label style="font-size:13px;">事業所
+    <select id="facilitypick" aria-label="事業所をえらぶ" style="font-family:inherit;font-size:15px;min-height:44px;border-radius:9px;border:none;padding:6px 8px;"></select>
+  </label>
+  <a class="btn outline" href="index.html">割り当て画面へ</a>
+  <a class="btn outline" href="settings.html">設定へ</a>
+</header>
+
+<div class="banner hide" id="banner"></div>
+
+<div class="wrap">
+  <div class="card">
+    <h2>マスタの編集</h2>
+    <p class="lead">
+      直したら、いちばん下の「保存」を押してください。押すまでは GitHub には反映されません。<br>
+      利用者を消すのがこわいときは、「使う」のチェックを外すと、記録を残したまま送迎表に出さないようにできます。
+    </p>
+    <div class="tabs" id="tabs"></div>
+    <div id="tabbody"></div>
+  </div>
+</div>
+
+<div class="savebar">
+  <span class="state" id="savestate"></span>
+  <span class="sp"></span>
+  <button class="btn go" id="save" type="button">いま開いているタブを保存</button>
+</div>
+
+<datalist id="arealist"></datalist>
+<datalist id="driverlist"></datalist>
+
+<div id="toast"></div>
+<div class="veil" id="veil"></div>
+
+<script type="module">
+  import { start } from './js/ui/mastersScreen.js';
+  start();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "facilityId": "yahata",
+  "updatedAt": "2026-07-29T00:00:00.000Z",
+  "vans": [
+    { "id": "v1", "name": "ハイエース", "seats": 6, "wheelchairSeats": 1, "driver": "山田", "days": [1, 2, 3, 4, 5, 6], "note": "", "active": true },
+    { "id": "v2", "name": "キャラバン", "seats": 5, "wheelchairSeats": 1, "driver": "佐々木", "days": [1, 2, 3, 4, 5, 6], "note": "", "active": true },
+    { "id": "v3", "name": "リフト車", "seats": 2, "wheelchairSeats": 2, "driver": "大西", "days": [1, 2, 3, 4, 5, 6], "note": "", "active": true },
+    { "id": "v4", "name": "セレナ", "seats": 4, "wheelchairSeats": 1, "driver": "木下", "days": [1, 2, 3, 4, 5, 6], "note": "", "active": true },
+    { "id": "v5", "name": "ステップワゴン", "seats": 4, "wheelchairSeats": 0, "driver": "高橋", "days": [1, 2, 3, 4, 5, 6], "note": "", "active": true },
+    { "id": "v6", "name": "タント", "seats": 3, "wheelchairSeats": 0, "driver": "藤井", "days": [1, 2, 3, 4, 5], "note": "土曜はお休み", "active": true }
+  ]
+}

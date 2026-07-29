@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "facilityId": "yahata",
+  "updatedAt": "2026-07-29T00:00:00.000Z",
+  "users": [
+    { "id": "u01", "name": "井上 健太", "area": "佐伯区", "wheelchair": false, "days": [1, 2, 3, 4, 5, 6], "noReturn": false, "note": "", "active": true },
+    { "id": "u02", "name": "岡田 みどり", "area": "佐伯区", "wheelchair": true, "days": [1, 3, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u03", "name": "小林 大輔", "area": "佐伯区", "wheelchair": false, "days": [1, 2, 3, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u04", "name": "中村 陽子", "area": "佐伯区", "wheelchair": false, "days": [2, 4, 6], "noReturn": false, "note": "", "active": true },
+    { "id": "u05", "name": "藤本 修", "area": "佐伯区", "wheelchair": false, "days": [1, 2, 3, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u06", "name": "重松 里美", "area": "佐伯区", "wheelchair": false, "days": [1, 2, 3, 4, 5, 6], "noReturn": false, "note": "", "active": true },
+    { "id": "u07", "name": "谷口 健二", "area": "佐伯区", "wheelchair": false, "days": [1, 3, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u08", "name": "上田 亮", "area": "西区", "wheelchair": false, "days": [1, 2, 3, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u09", "name": "川本 さくら", "area": "西区", "wheelchair": false, "days": [1, 2, 3, 4, 5, 6], "noReturn": false, "note": "", "active": true },
+    { "id": "u10", "name": "田口 誠", "area": "西区", "wheelchair": true, "days": [2, 3, 4], "noReturn": false, "note": "", "active": true },
+    { "id": "u11", "name": "森 ひかり", "area": "西区", "wheelchair": false, "days": [1, 3, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u12", "name": "原田 光", "area": "西区", "wheelchair": false, "days": [1, 2, 3, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u13", "name": "久保 静江", "area": "西区", "wheelchair": false, "days": [2, 4], "noReturn": false, "note": "", "active": true },
+    { "id": "u14", "name": "内田 拓也", "area": "西区", "wheelchair": false, "days": [1, 2, 3, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u15", "name": "石橋 直人", "area": "中区", "wheelchair": false, "days": [1, 2, 3, 4, 5], "noReturn": true, "note": "送りはご家族のお迎え", "active": true },
+    { "id": "u16", "name": "河野 泰子", "area": "中区", "wheelchair": false, "days": [1, 2, 3, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u17", "name": "山根 淳", "area": "中区", "wheelchair": true, "days": [1, 2, 3, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u18", "name": "高木 舞", "area": "中区", "wheelchair": false, "days": [3, 4, 5, 6], "noReturn": false, "note": "", "active": true },
+    { "id": "u19", "name": "仁井 稔", "area": "中区", "wheelchair": false, "days": [1, 2, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u20", "name": "植田 千夏", "area": "中区", "wheelchair": false, "days": [1, 2, 3, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u21", "name": "沖本 隆", "area": "廿日市", "wheelchair": false, "days": [1, 2, 3, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u22", "name": "三宅 智子", "area": "廿日市", "wheelchair": false, "days": [1, 2, 4, 5, 6], "noReturn": false, "note": "", "active": true },
+    { "id": "u23", "name": "吉田 光男", "area": "廿日市", "wheelchair": true, "days": [1, 4], "noReturn": false, "note": "", "active": true },
+    { "id": "u24", "name": "松本 涼", "area": "廿日市", "wheelchair": false, "days": [1, 2, 3, 4, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u25", "name": "新見 恵子", "area": "廿日市", "wheelchair": false, "days": [2, 3, 5], "noReturn": false, "note": "", "active": true },
+    { "id": "u26", "name": "寺岡 勇", "area": "廿日市", "wheelchair": true, "days": [2, 5], "noReturn": false, "note": "", "active": true }
+  ]
+}
