@@ -1,0 +1,13 @@
+{
+  "name": "soutai-publish",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "送迎表をPNGにしてLINE WORKSへ送るための道具（GitHub Actionsの中だけで動きます。アプリ本体は依存ゼロのままです）",
+  "scripts": {
+    "publish": "node run.js"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

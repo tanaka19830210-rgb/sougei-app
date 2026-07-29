@@ -10,8 +10,8 @@ import { toast, showDialog, setBanner, renderModeBadge, errorMessage, escapeHtml
 import { bindDrag } from './drag.js';
 import * as R from './assignRender.js';
 import * as A from '../core/assign.js';
-import { normalizeNote } from '../core/schema.js';
-import { weekKeyOf, shiftWeekKey, parseDateKey, clockLabel, fullDateLabel } from '../core/dates.js';
+import { normalizeNote, DIRS } from '../core/schema.js';
+import { weekKeyOf, shiftWeekKey, parseDateKey, clockLabel, fullDateLabel, dayLabel, weekShortLabel } from '../core/dates.js';
 import { ConflictError } from '../store/errors.js';
 
 const state = {
@@ -256,6 +256,89 @@ function addNote() {
   markDirty();
 }
 
+/* ------------------------------------------------------------
+   確定して配信（LINE WORKS へ）
+
+   アプリは「配信してください」という小さな依頼ファイルを
+   データ用リポジトリに置くところまでを受けもちます。
+   PNGを作って送るのは、そのリポジトリの GitHub Actions です。
+   ------------------------------------------------------------ */
+
+/* 週ぜんぶを見て、まだ乗っていない人が残っている曜日・便を集める */
+function unfinishedSlots() {
+  const list = [];
+  state.facility.days.forEach(n => {
+    const dayState = state.plan.days[String(n)];
+    if (!dayState) return;
+    DIRS.forEach(d => {
+      const left = A.unassignedUsers(state.ctx, dayState[d.key], n, d.key);
+      if (left.length) list.push({ day: n, dirLabel: d.label, count: left.length });
+    });
+  });
+  return list;
+}
+
+async function doPublish() {
+  if (state.busy) return;
+
+  const unfinished = unfinishedSlots();
+  if (unfinished.length) {
+    const lines = unfinished
+      .slice(0, 8)
+      .map(s => `${dayLabel(s.day)}曜の${s.dirLabel}　${s.count}名`);
+    if (unfinished.length > 8) lines.push('ほか');
+    await showDialog({
+      title: 'まだ乗っていない人がいます',
+      bodyHtml: 'この週は、つぎのところがまだ空いています。<br>' +
+        `<b>${lines.map(escapeHtml).join('<br>')}</b><br>` +
+        'ぜんぶ乗せてから、もう一度「確定して配信」をおしてください。',
+      buttons: [{ label: 'とじる', value: 'close' }]
+    });
+    return;
+  }
+
+  const answer = await showDialog({
+    title: 'この内容で配信します',
+    bodyHtml: `<b>${escapeHtml(state.facility.name)}</b> の ` +
+      `<b>${escapeHtml(weekShortLabel(state.weekStart))}</b> の送迎表を、<br>` +
+      'LINE WORKS の管理グループへ配信します。よろしいですか？<br>' +
+      '（トークに、紙と同じ画像が1枚とどきます）',
+    buttons: [
+      { label: 'やめる', value: 'cancel' },
+      { label: '配信する', value: 'go', kind: 'go' }
+    ]
+  });
+  if (answer !== 'go') return;
+
+  /* 配信されるのは「保存したもの」なので、まず保存する */
+  if (!await doSave()) return;
+
+  state.busy = true;
+  const button = document.getElementById('publish');
+  button.disabled = true;
+  try {
+    await state.repo.savePublishRequest({
+      facility: state.facility,
+      weekStart: state.weekStart,
+      requestedBy: state.config.editorName
+    });
+    if (state.store.mode === 'github') {
+      toast('配信をお願いしました。1〜2分でトークに届きます');
+    } else {
+      toast('（お試しモード）配信の依頼だけ控えました。実際には送られません', 'warn');
+    }
+  } catch (e) {
+    if (e instanceof ConflictError) {
+      toast('前の配信がまだ終わっていないようです。少し待ってからもう一度おしてください', 'warn');
+    } else {
+      toast(errorMessage(e), 'error');
+    }
+  } finally {
+    state.busy = false;
+    button.disabled = false;
+  }
+}
+
 async function goPrint() {
   if (isDirty()) {
     const answer = await showDialog({
@@ -328,6 +411,7 @@ export async function start() {
     document.getElementById('undo').onclick = undo;
     document.getElementById('save').onclick = () => { doSave(); };
     document.getElementById('print').onclick = goPrint;
+    document.getElementById('publish').onclick = doPublish;
     document.getElementById('prevweek').onclick = () => changeWeek(-1);
     document.getElementById('nextweek').onclick = () => changeWeek(1);
     document.getElementById('noteadd').onclick = addNote;

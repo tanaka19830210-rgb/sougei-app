@@ -31,6 +31,23 @@ export function planPath(facilityId, weekStartKey) {
   return `${DATA_ROOT}/${facilityId}/plans/${weekStartKey}.json`;
 }
 
+/* ------------------------------------------------------------
+   配信依頼の置き場所
+
+   ここにファイルが増えたことを合図に、データ用リポジトリの
+   GitHub Actions（.github/workflows/publish.yml）が動きます。
+   処理が終わったものは done/ に移すので、同じ依頼が何度も動きません。
+   ------------------------------------------------------------ */
+export const PUBLISH_ROOT = 'publish-requests';
+
+export function publishRequestPath(facilityId, weekStartKey) {
+  return `${PUBLISH_ROOT}/${facilityId}-${weekStartKey}.json`;
+}
+
+export function publishDonePath(facilityId, weekStartKey, stamp) {
+  return `${PUBLISH_ROOT}/done/${facilityId}-${weekStartKey}-${stamp}.json`;
+}
+
 /* マスタの種類 → ファイルの場所と、JSON の中の配列名 */
 export const MASTER_KINDS = {
   users: { path: usersPath, listKey: 'users', label: '利用者マスタ' },

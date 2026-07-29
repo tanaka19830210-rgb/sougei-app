@@ -3,6 +3,10 @@
    ============================================================ */
 
 import { ICON_WARN } from './icons.js';
+import { escapeHtml } from '../core/html.js';
+
+/* 画面に文字を出すときは必ずこれを通す（名前に < が入っていても崩れないように） */
+export { escapeHtml };
 
 export function $(selector, root = document) {
   return root.querySelector(selector);
@@ -17,16 +21,6 @@ export function el(tag, className, text) {
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
-}
-
-/* 画面に文字を出すときは必ずここを通す（名前に < が入っていても崩れないように） */
-export function escapeHtml(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /* ---------- お知らせ（画面下にすこし出る） ---------- */

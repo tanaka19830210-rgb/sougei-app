@@ -7,6 +7,7 @@
 
 import * as paths from './paths.js';
 import * as schema from '../core/schema.js';
+import { createPublishRequest } from '../core/publishRequest.js';
 
 export function createRepository(store) {
   /* 読んだときの sha をおぼえておく。保存のときに「上書き事故」を防ぐために使う */
@@ -108,6 +109,17 @@ export function createRepository(store) {
       const message = `送迎表 ${shortName(facility)} ${weekStart}週 を更新`;
       const result = await write(path, data, message);
       return { ...result, plan: data };
+    },
+
+    /* ---------- 配信依頼（LINE WORKS への配信の合図） ---------- */
+    async savePublishRequest({ facility, weekStart, requestedBy, now }) {
+      const path = paths.publishRequestPath(facility.id, weekStart);
+      /* 前の依頼ファイルが残っていることもあるので、いまの版を読んでから上書きする */
+      await read(path);
+      const request = createPublishRequest({ facility, weekStart, requestedBy, now });
+      const message = `配信依頼 ${shortName(facility)} ${weekStart}週`;
+      const result = await write(path, request, message);
+      return { ...result, request };
     }
   };
 }

@@ -1,0 +1,94 @@
+# ============================================================
+# 送迎表を PNG にして LINE WORKS へ送るしくみ
+#
+# このファイルは「データ用リポジトリ（private）」の
+#   .github/workflows/publish.yml
+# として置いてください。作りかたは README.md の
+# 「LINE WORKS 配信のしたく」を見てください。
+#
+# 動く合図
+#   アプリで「確定して配信」をおすと、publish-requests/ に
+#   小さな依頼ファイル（JSON）が1つ増えます。それが合図です。
+#   送迎表を保存しただけでは動きません（data/ の変更では動かない設定です）。
+# ============================================================
+
+name: 送迎表をLINE WORKSへ配信
+
+on:
+  push:
+    paths:
+      # publish-requests の直下の JSON だけ。done/ に移したものでは動きません
+      - 'publish-requests/*.json'
+
+# 処理した依頼を done/ へ移して記録を残すために、書きこみを許可します
+permissions:
+  contents: write
+
+# 同時に2つ動かないようにします（続けて押されたときのため）
+concurrency:
+  group: soutai-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 送迎表のデータを取り出す
+        uses: actions/checkout@v4
+
+      - name: アプリを取り出す（紙面の作りかたを共通で使うため）
+        uses: actions/checkout@v4
+        with:
+          # ★★★ ここだけ、ご自分のGitHubアカウント名に書きかえてください ★★★
+          repository: YOUR-ACCOUNT/soutai-app
+          path: app
+
+      - name: Node を用意する
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 日本語のフォントを入れる（入れないと文字が □ になります）
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk
+
+      - name: 画像を作る道具を入れる
+        working-directory: app/tools/publish
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: 送迎表を画像にして LINE WORKS へ送る
+        working-directory: app/tools/publish
+        env:
+          DATA_DIR: ${{ github.workspace }}
+          LW_CLIENT_ID: ${{ secrets.LW_CLIENT_ID }}
+          LW_CLIENT_SECRET: ${{ secrets.LW_CLIENT_SECRET }}
+          LW_SERVICE_ACCOUNT: ${{ secrets.LW_SERVICE_ACCOUNT }}
+          LW_PRIVATE_KEY: ${{ secrets.LW_PRIVATE_KEY }}
+          LW_BOT_ID: ${{ secrets.LW_BOT_ID }}
+          LW_CHANNEL_ID: ${{ secrets.LW_CHANNEL_ID }}
+        run: node run.js
+
+      - name: 送った画像を残しておく（うまくいかないとき確認するため）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soutai-png
+          path: app/tools/publish/out/*.png
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: 処理した依頼を片づける（同じ依頼で何度も動かないように）
+        if: always()
+        run: |
+          git config user.name "送迎表配信ボット"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add publish-requests
+          if git diff --cached --quiet; then
+            echo "片づけるものはありませんでした"
+          else
+            git commit -m "配信の結果を記録しました"
+            git push || (git pull --rebase && git push)
+          fi

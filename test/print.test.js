@@ -2,7 +2,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPageHtml } from '../js/ui/printScreen.js';
+import { buildPageHtml } from '../js/core/printLayout.js';
 import * as A from '../js/core/assign.js';
 import { normalizeDrivers, normalizeNotes } from '../js/core/schema.js';
 import { makeFixture } from './fixture.js';

@@ -14,4 +14,6 @@ import './schema.test.js';
 import './assign.test.js';
 import './store.test.js';
 import './print.test.js';
+import './publish.test.js';
+import './lineworks.test.js';
 import './data.test.js';
