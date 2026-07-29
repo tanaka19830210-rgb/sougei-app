@@ -149,7 +149,9 @@ export function buildStandaloneHtml({ facility, weekStart, pageHtml, cssTexts })
 <style>
 ${(cssTexts || []).join('\n')}
 /* 画像にするときは、用紙のまわりの余白・影をなくして紙だけにする */
-body{background:#fff;margin:0;}
+body{background:#fff;margin:0;
+  /* Linux（GitHub Actions）で日本語が □ にならないように、そこにある日本語フォントも並べる */
+  font-family:'Noto Sans JP','Noto Sans CJK JP','Hiragino Kaku Gothic ProN','Yu Gothic','IPAGothic',sans-serif;}
 .stack{padding:0;}
 .page{width:210mm;min-height:297mm;margin:0;box-shadow:none;}
 </style>
