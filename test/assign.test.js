@@ -219,6 +219,61 @@ test('自動割り当て：既存の週配置を壊さず空席だけ足す', ()
   assert.notEqual(A.findRow(ctx, plan.days['1'].out, 'u1', 1).index, 1, '既存席は触らない');
 });
 
+/* ---------- みんな降ろす ---------- */
+test('clearWeekAssignments：週全体から降ろし、メモ・運転手・notes は残す', () => {
+  const { ctx, plan, facility } = makeFixture();
+  A.autoAssignWeek(ctx, { plan, days: facility.days });
+  plan.days['1'].out.vans.v1.memo = '雨の日は玄関前まで';
+  plan.days['1'].out.vans.v1.driver = '山田';
+  plan.days['1'].notes = [{ kind: 'hand', text: '引き継ぎ' }];
+  plan.days['2'].ret.vans.v1.memo = '送りメモ';
+  plan.days['2'].ret.vans.v1.driver = '';
+
+  const before = A.placedIds(ctx, plan.days['1'].out, 1).length
+    + A.placedIds(ctx, plan.days['1'].ret, 1).length;
+  assert.ok(before > 0, '前提：誰か乗っている');
+
+  const { removed } = A.clearWeekAssignments(ctx, { plan, days: facility.days });
+  assert.ok(removed > 0);
+
+  facility.days.forEach(day => {
+    ['out', 'ret'].forEach(dir => {
+      assert.equal(A.placedIds(ctx, plan.days[String(day)][dir], day).length, 0,
+        `${day}曜の${dir}は全員プールへ`);
+      assert.deepEqual(
+        A.unassignedUsers(ctx, plan.days[String(day)][dir], day, dir).map(u => u.id),
+        A.targetUsers(ctx, day, dir).map(u => u.id)
+      );
+    });
+  });
+
+  assert.equal(plan.days['1'].out.vans.v1.memo, '雨の日は玄関前まで');
+  assert.equal(plan.days['1'].out.vans.v1.driver, '山田');
+  assert.deepEqual(plan.days['1'].notes, [{ kind: 'hand', text: '引き継ぎ' }]);
+  assert.equal(plan.days['2'].ret.vans.v1.memo, '送りメモ');
+  assert.equal(plan.days['2'].ret.vans.v1.driver, '');
+  assert.deepEqual(plan.days['1'].out.vans.v1.rows[0], { userId: null, time: '', changed: false });
+});
+
+test('clearWeekAssignments：降ろしたあとにルール割り当てで埋め直せる', () => {
+  const { ctx, plan, facility } = makeFixture();
+  A.autoAssignWeek(ctx, { plan, days: [1] });
+  A.clearWeekAssignments(ctx, { plan, days: [1] });
+  const again = A.autoAssignWeek(ctx, { plan, days: [1] });
+  assert.ok(again.placed > 0);
+  assert.ok(A.findRow(ctx, plan.days['1'].out, 'u1', 1));
+});
+
+test('clearWeekAssignments：週スナップショットからもどせる（undo と同じ考え方）', () => {
+  const { ctx, plan, facility } = makeFixture();
+  A.autoAssignWeek(ctx, { plan, days: [1, 2] });
+  const snapshot = JSON.parse(JSON.stringify({ __week: true, days: plan.days }));
+  A.clearWeekAssignments(ctx, { plan, days: [1, 2] });
+  assert.equal(A.placedIds(ctx, plan.days['1'].out, 1).length, 0);
+  plan.days = snapshot.days;
+  assert.ok(A.placedIds(ctx, plan.days['1'].out, 1).length > 0, 'undo で配置が戻る');
+});
+
 /* ---------- 同乗NGペア ---------- */
 test('NGペア：同じ車にいる相手を見つける', () => {
   const { ctx, plan } = makeFixture();

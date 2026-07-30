@@ -247,6 +247,29 @@ test('repository：マスタのコミットメッセージと置き場所', asyn
   assert.equal(file.users.length, users.length);
 });
 
+test('repository：まだファイルが無い週は空の割り当てで始まる（先週をコピーしない）', async () => {
+  const store = memoryStore();
+  const repo = createRepository(store);
+  const { facility, vans, plan } = makeFixture();
+
+  /* 先週だけ保存する */
+  plan.days['1'].out.vans.v1.rows[0].userId = 'u1';
+  plan.days['1'].out.vans.v1.memo = '先週のメモ';
+  await repo.savePlan({ facility, weekStart: '2026-08-03', plan, editorName: '田中' });
+
+  const next = await repo.loadPlan({ facility, vans, weekStart: '2026-08-10' });
+  assert.equal(next.exists, false);
+  assert.equal(next.plan.weekStart, '2026-08-10');
+  assert.equal(next.plan.days['1'].out.vans.v1.rows[0].userId, null);
+  assert.equal(next.plan.days['1'].out.vans.v1.memo, '');
+  assert.deepEqual(next.plan.days['1'].notes, []);
+  /* 先週のファイルは触っていない */
+  const prev = await repo.loadPlan({ facility, vans, weekStart: '2026-08-03' });
+  assert.equal(prev.exists, true);
+  assert.equal(prev.plan.days['1'].out.vans.v1.rows[0].userId, 'u1');
+  assert.equal(prev.plan.days['1'].out.vans.v1.memo, '先週のメモ');
+});
+
 test('repository：まだファイルが無い事業所も、空のマスタとして読める', async () => {
   const repo = createRepository(memoryStore());
   const masters = await repo.loadMasters('newone');

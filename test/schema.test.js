@@ -5,6 +5,24 @@ import assert from 'node:assert/strict';
 import * as S from '../js/core/schema.js';
 import { makeFixture, makeVans } from './fixture.js';
 
+test('createEmptyPlan：新規週は座席が空で始まる', () => {
+  const { facility, vans } = makeFixture();
+  const plan = S.createEmptyPlan({ facilityId: facility.id, weekStart: '2026-08-10', vans, days: facility.days });
+  let riders = 0;
+  Object.values(plan.days).forEach(day => {
+    ['out', 'ret'].forEach(dir => {
+      Object.values(day[dir].vans).forEach(van => {
+        riders += van.rows.filter(r => r.userId).length;
+        assert.equal(van.memo, '');
+        assert.equal(van.driver, null);
+      });
+    });
+    assert.deepEqual(day.notes, []);
+  });
+  assert.equal(riders, 0);
+  assert.equal(plan.weekStart, '2026-08-10');
+});
+
 test('createEmptyPlan：曜日・迎え送り・車のわく箱ができる', () => {
   const { facility, vans } = makeFixture();
   const plan = S.createEmptyPlan({ facilityId: facility.id, weekStart: '2026-08-03', vans, days: facility.days });

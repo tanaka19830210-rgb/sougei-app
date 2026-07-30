@@ -84,15 +84,26 @@ export function createRepository(store) {
     },
 
     /* ---------- 週次プラン ---------- */
+    /*
+      週のファイルが無いときは、空の割り当て（blank）で始める。
+      先週の plan はコピーしない（ルール割り当ては画面のボタンでやる）。
+    */
     async loadPlan({ facility, vans, weekStart }) {
       const path = paths.planPath(facility.id, weekStart);
       const result = await read(path);
-      const plan = schema.normalizePlan(result ? result.data : null, {
-        facilityId: facility.id,
-        weekStart,
-        vans,
-        days: facility.days
-      });
+      const plan = result
+        ? schema.normalizePlan(result.data, {
+            facilityId: facility.id,
+            weekStart,
+            vans,
+            days: facility.days
+          })
+        : schema.createEmptyPlan({
+            facilityId: facility.id,
+            weekStart,
+            vans,
+            days: facility.days
+          });
       return { plan, path, exists: !!result, sha: result ? result.sha : null };
     },
 

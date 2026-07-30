@@ -286,6 +286,41 @@ export function autoAssignWeek(ctx, { plan, days } = {}) {
   return summary;
 }
 
+/*
+  週全体（月〜土 × 迎えと送り）から、乗っている人をすべて降ろす。
+  - 座席の userId / time / changed だけ空にする
+  - 車両のメモ・運転手・日ごとのメモ（notes）はそのまま
+  plan.days をその場で書きかえる。
+*/
+export function clearWeekAssignments(ctx, { plan, days } = {}) {
+  const useDays = Array.isArray(days) && days.length
+    ? days.map(Number).filter(n => n >= 1 && n <= 6)
+    : [1, 2, 3, 4, 5, 6];
+  let removed = 0;
+  if (!plan || !plan.days) return { removed };
+
+  useDays.forEach(day => {
+    const dayState = plan.days[String(day)];
+    if (!dayState) return;
+    ['out', 'ret'].forEach(dir => {
+      const dirState = dayState[dir];
+      if (!dirState || !dirState.vans) return;
+      vansForDay(ctx.vans, day).forEach(v => {
+        const van = dirState.vans[v.id];
+        if (!van || !Array.isArray(van.rows)) return;
+        van.rows.forEach(row => {
+          if (!row.userId) return;
+          row.userId = null;
+          row.time = '';
+          row.changed = false;
+          removed += 1;
+        });
+      });
+    });
+  });
+  return { removed };
+}
+
 /* ------------------------------------------------------------
    迎え → 送り のコピー（送りは迎えのコピーが初期値）
    「送り不要」の方は乗せない。メモと運転手は引きつぐ。

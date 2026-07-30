@@ -201,6 +201,13 @@ async function doSave() {
 /* ============================================================
    ボタンの動き
    ============================================================ */
+/* 週全体の操作をもどせるように控える（ルール割り当て／みんな降ろす用） */
+function pushWeekUndo() {
+  state.undoStack.push(JSON.stringify({ __week: true, days: state.plan.days }));
+  if (state.undoStack.length > 50) state.undoStack.shift();
+  document.getElementById('undo').disabled = false;
+}
+
 async function autoAssignWeek() {
   const answer = await showDialog({
     title: 'この週をルールどおりに割り当てます',
@@ -216,10 +223,7 @@ async function autoAssignWeek() {
   });
   if (answer !== 'ok') return;
 
-  /* 週全体をもどせるように控える */
-  state.undoStack.push(JSON.stringify({ __week: true, days: state.plan.days }));
-  if (state.undoStack.length > 50) state.undoStack.shift();
-  document.getElementById('undo').disabled = false;
+  pushWeekUndo();
 
   const summary = A.autoAssignWeek(state.ctx, {
     plan: state.plan,
@@ -240,6 +244,34 @@ async function autoAssignWeek() {
       `${summary.placed}名を乗せました。${parts.join('・')}は手でうごかしてください`,
       'warn'
     );
+  }
+}
+
+async function clearWeekAssignments() {
+  const answer = await showDialog({
+    title: 'みんな降ろします',
+    bodyHtml:
+      'この週に乗っている人を、すべて「まだ乗っていない人」にもどします。<br>' +
+      '車両のメモや日ごとのメモ・運転手の指定はそのままです。よろしいですか？',
+    buttons: [
+      { label: 'やめる', value: 'cancel' },
+      { label: 'みんな降ろす', value: 'ok', kind: 'go' }
+    ]
+  });
+  if (answer !== 'ok') return;
+
+  pushWeekUndo();
+
+  const { removed } = A.clearWeekAssignments(state.ctx, {
+    plan: state.plan,
+    days: state.facility.days
+  });
+  render();
+
+  if (removed === 0) {
+    toast('乗っている人はいませんでした', 'warn');
+  } else {
+    toast(`${removed}名を降ろしました。「1手戻す」でもどせます`);
   }
 }
 
@@ -441,6 +473,7 @@ export async function start() {
     }
 
     document.getElementById('auto').onclick = autoAssignWeek;
+    document.getElementById('clearweek').onclick = clearWeekAssignments;
     document.getElementById('undo').onclick = undo;
     document.getElementById('save').onclick = () => { doSave(); };
     document.getElementById('print').onclick = goPrint;
