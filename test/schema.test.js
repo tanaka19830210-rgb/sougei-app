@@ -39,6 +39,28 @@ test('normalizeUser：プロトタイプの wc も読める。使わない方は
   assert.equal(all.length, 1);
 });
 
+test('normalizeUser：usualVans を整え、無いときは空にする', () => {
+  const users = S.normalizeUsers({ users: [
+    {
+      id: 'a', name: 'あ', area: 'X', days: [1],
+      usualVans: {
+        '1': { out: 'v1', ret: '' },
+        '2': { out: null, ret: null },
+        '9': { out: 'v9', ret: 'v9' }
+      }
+    },
+    { id: 'b', name: 'い', area: 'X', days: [1] }
+  ] });
+  assert.deepEqual(users[0].usualVans, { '1': { out: 'v1', ret: null } });
+  assert.deepEqual(users[1].usualVans, {});
+});
+
+test('normalizeUsualVans：不正なかたちは空にする', () => {
+  assert.deepEqual(S.normalizeUsualVans(null), {});
+  assert.deepEqual(S.normalizeUsualVans([]), {});
+  assert.deepEqual(S.normalizeUsualVans('x'), {});
+});
+
 test('normalizeNgPairs：配列の形（プロトタイプ）も読める', () => {
   const pairs = S.normalizeNgPairs([['u01', 'u03'], { a: 'u08', b: 'u11' }, ['x', 'x']]);
   assert.deepEqual(pairs.map(p => [p.a, p.b]), [['u01', 'u03'], ['u08', 'u11']]);

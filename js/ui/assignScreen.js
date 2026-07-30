@@ -114,7 +114,7 @@ async function loadWeek(weekStart) {
     document.getElementById('undo').disabled = true;
     setBanner('banner', '');
     if (!result.exists && state.store.mode === 'github') {
-      toast('この週の送迎表はまだありません。「自動で割り当て」から始めてください');
+      toast('この週の送迎表はまだありません。「この週をルールどおりに割り当て」から始めてください');
     }
   } catch (e) {
     setBanner('banner', `読みこめませんでした：${escapeHtml(errorMessage(e))}`, 'error');
@@ -201,23 +201,56 @@ async function doSave() {
 /* ============================================================
    ボタンの動き
    ============================================================ */
-function autoAssign() {
-  app.snapshot();
-  const { state: next, leftOut } = A.autoAssign(state.ctx, {
-    day: state.day,
-    dir: state.dir,
-    prevState: app.dirState()
+async function autoAssignWeek() {
+  const answer = await showDialog({
+    title: 'この週をルールどおりに割り当てます',
+    bodyHtml:
+      'この週の、まだ空いている席だけを、マスタの「いつもの車」どおりに埋めます。<br>' +
+      'すでに乗っている人はそのままです。<br>' +
+      'いつもの車が決まっていない人は自動では乗せません。<br>' +
+      'よろしいですか？',
+    buttons: [
+      { label: 'やめる', value: 'cancel' },
+      { label: '割り当てる', value: 'ok', kind: 'go' }
+    ]
   });
-  app.dayState()[state.dir] = next;
+  if (answer !== 'ok') return;
+
+  /* 週全体をもどせるように控える */
+  state.undoStack.push(JSON.stringify({ __week: true, days: state.plan.days }));
+  if (state.undoStack.length > 50) state.undoStack.shift();
+  document.getElementById('undo').disabled = false;
+
+  const summary = A.autoAssignWeek(state.ctx, {
+    plan: state.plan,
+    days: state.facility.days
+  });
   render();
-  toast(leftOut.length
-    ? `${leftOut.length}名が乗れませんでした。手でうごかしてください`
-    : '割り当てました。かえたい所だけ直してください', leftOut.length ? 'warn' : undefined);
+
+  const left = summary.skippedNoRule + summary.skippedBlocked;
+  if (summary.placed === 0 && left === 0) {
+    toast('乗せる人がいませんでした（もう埋まっているか、対象の方がいません）', 'warn');
+  } else if (left === 0) {
+    toast(`${summary.placed}名を乗せました`);
+  } else {
+    const parts = [];
+    if (summary.skippedNoRule) parts.push(`ルール未設定 ${summary.skippedNoRule}名`);
+    if (summary.skippedBlocked) parts.push(`席不足など ${summary.skippedBlocked}名`);
+    toast(
+      `${summary.placed}名を乗せました。${parts.join('・')}は手でうごかしてください`,
+      'warn'
+    );
+  }
 }
 
 function undo() {
   if (!state.undoStack.length) return;
-  app.dayState()[state.dir] = JSON.parse(state.undoStack.pop());
+  const data = JSON.parse(state.undoStack.pop());
+  if (data && data.__week && data.days) {
+    state.plan.days = data.days;
+  } else {
+    app.dayState()[state.dir] = data;
+  }
   if (!state.undoStack.length) document.getElementById('undo').disabled = true;
   render();
   toast('1つ前にもどしました');
@@ -407,7 +440,7 @@ export async function start() {
         '<a href="masters.html">マスタ編集</a>から登録してください。', 'warn');
     }
 
-    document.getElementById('auto').onclick = autoAssign;
+    document.getElementById('auto').onclick = autoAssignWeek;
     document.getElementById('undo').onclick = undo;
     document.getElementById('save').onclick = () => { doSave(); };
     document.getElementById('print').onclick = goPrint;

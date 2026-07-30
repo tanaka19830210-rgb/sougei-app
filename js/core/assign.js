@@ -4,7 +4,7 @@
    ここは test/ からそのまま呼べるように、DOM をいっさい触らない。
    ============================================================ */
 
-import { capacity, vansForDay, blankRow, blankRows } from './schema.js';
+import { capacity, vansForDay, blankRow } from './schema.js';
 
 /* ------------------------------------------------------------
    計算のもとになる材料をひとまとめにする
@@ -168,70 +168,122 @@ export function removeToPool(ctx, dirState, { userId, dir, day }) {
 }
 
 /* ------------------------------------------------------------
-   自動で割り当て
-   1. 車椅子の方を、車椅子スペースのある車へ
-   2. 歩ける方を、同じエリアの人がいる車へ（エリアでまとめる）
-   定員と車椅子わく、同乗NGペアは守る。乗り切らない人は leftOut に入れて
-   画面から「手でうごかしてください」と伝える。
+   いつもの車（マスタの usualVans）
+   曜日 × 迎え/送り。未設定・null・欠落は null を返す。
    ------------------------------------------------------------ */
-export function autoAssign(ctx, { day, dir, prevState }) {
-  const dayVans = vansForDay(ctx.vans, day);
-  const state = { vans: {} };
-  dayVans.forEach(v => {
-    const prev = prevState && prevState.vans ? prevState.vans[v.id] : null;
-    state.vans[v.id] = {
-      /* メモと運転手は消さずに残す */
-      driver: prev && typeof prev.driver === 'string' ? prev.driver : null,
-      memo: prev && prev.memo ? prev.memo : '',
-      rows: blankRows(v)
-    };
-  });
+export function usualVanId(user, day, dir) {
+  if (!user || !user.usualVans || typeof user.usualVans !== 'object') return null;
+  const entry = user.usualVans[String(day)];
+  if (!entry || typeof entry !== 'object') return null;
+  const vanId = entry[dir];
+  return vanId ? String(vanId) : null;
+}
 
-  const list = targetUsers(ctx, day, dir);
-  const wcUsers = list.filter(u => u.wheelchair);
-  const walkers = list.filter(u => !u.wheelchair);
-  const leftOut = [];
+function putInEmptySeat(dirState, vanId, userId) {
+  const van = dirState && dirState.vans ? dirState.vans[vanId] : null;
+  if (!van || !Array.isArray(van.rows)) return false;
+  const row = van.rows.find(r => !r.userId);
+  if (!row) return false;
+  row.userId = userId;
+  row.time = '';
+  row.changed = false;
+  return true;
+}
 
-  const putIn = (vanId, userId) => {
-    const row = state.vans[vanId].rows.find(r => !r.userId);
-    if (!row) return false;
-    row.userId = userId;
-    return true;
-  };
+/*
+  1日・1便ぶん：空いている席だけを、マスタの「いつもの車」どおりに埋める。
+  - すでに乗っている人・席は動かさない
+  - いつもの車が未設定の人は乗せない（プールに残す）
+  - 定員・車椅子わく・同乗NGを守れないときはスキップ
+  dirState をその場で書きかえる。
+*/
+export function autoAssignDir(ctx, { day, dir, dirState }) {
+  const placed = [];
+  const skippedNoRule = [];
+  const skippedBlocked = [];
+  if (!dirState || !dirState.vans) {
+    return { placed, skippedNoRule, skippedBlocked };
+  }
 
-  wcUsers.forEach(u => {
-    const van = dayVans
-      .filter(v => v.wheelchairSeats > 0
-        && wheelchairCount(ctx, state, v.id) < v.wheelchairSeats
-        && freeSeats(state, v.id) > 0
-        && !ngPartnerIn(ctx, state, v.id, u.id))
-      .sort((a, b) => (b.wheelchairSeats - wheelchairCount(ctx, state, b.id))
-        - (a.wheelchairSeats - wheelchairCount(ctx, state, a.id)))[0];
-    if (van) putIn(van.id, u.id); else leftOut.push(u);
-  });
-
-  const byArea = {};
-  walkers.forEach(u => { (byArea[u.area] = byArea[u.area] || []).push(u); });
-  Object.values(byArea).forEach(group => group.forEach(u => {
-    const score = v => ridersIn(state, v.id)
-      .filter(id => ctx.usersById[id] && ctx.usersById[id].area === u.area).length * 10
-      + freeSeats(state, v.id);
-    const van = dayVans
-      .filter(v => freeSeats(state, v.id) > 0 && !ngPartnerIn(ctx, state, v.id, u.id))
-      .sort((a, b) => score(b) - score(a))[0];
-    if (van) putIn(van.id, u.id); else leftOut.push(u);
+  const dayVanIds = new Set(vansForDay(ctx.vans, day).map(v => v.id));
+  const candidates = unassignedUsers(ctx, dirState, day, dir).map(user => ({
+    user,
+    vanId: usualVanId(user, day, dir)
   }));
 
-  /* 前へ詰めなおして時刻をふりなおす */
-  dayVans.forEach(v => {
-    const ids = state.vans[v.id].rows.filter(r => r.userId).map(r => r.userId);
-    state.vans[v.id].rows = Array.from({ length: capacity(v) }, (_, i) => (
-      ids[i] ? { userId: ids[i], time: '', changed: false } : blankRow()
-    ));
-    retimeVan(ctx, state, v.id, dir);
+  const withRule = [];
+  candidates.forEach(c => {
+    if (!c.vanId) skippedNoRule.push(c.user);
+    else withRule.push(c);
   });
 
-  return { state, leftOut };
+  /* 車椅子の方を先に（わくが少ないので） */
+  withRule.sort((a, b) => Number(!!b.user.wheelchair) - Number(!!a.user.wheelchair));
+
+  const touched = new Set();
+  withRule.forEach(({ user, vanId }) => {
+    const van = ctx.vansById[vanId];
+    if (!van || !dayVanIds.has(vanId) || !dirState.vans[vanId]) {
+      skippedBlocked.push(user);
+      return;
+    }
+    if (user.wheelchair && wheelchairCount(ctx, dirState, vanId) >= van.wheelchairSeats) {
+      skippedBlocked.push(user);
+      return;
+    }
+    if (freeSeats(dirState, vanId) <= 0) {
+      skippedBlocked.push(user);
+      return;
+    }
+    if (ngPartnerIn(ctx, dirState, vanId, user.id)) {
+      skippedBlocked.push(user);
+      return;
+    }
+    if (!putInEmptySeat(dirState, vanId, user.id)) {
+      skippedBlocked.push(user);
+      return;
+    }
+    placed.push(user);
+    touched.add(vanId);
+  });
+
+  touched.forEach(vanId => retimeVan(ctx, dirState, vanId, dir));
+  return { placed, skippedNoRule, skippedBlocked };
+}
+
+/*
+  週全体（月〜土 × 迎えと送り）を、ルールどおりに空席だけ埋める。
+  plan.days をその場で書きかえる。すでに乗っている配置は壊さない。
+*/
+export function autoAssignWeek(ctx, { plan, days } = {}) {
+  const useDays = Array.isArray(days) && days.length
+    ? days.map(Number).filter(n => n >= 1 && n <= 6)
+    : [1, 2, 3, 4, 5, 6];
+  const summary = {
+    placed: 0,
+    skippedNoRule: 0,
+    skippedBlocked: 0,
+    placedUsers: [],
+    skippedNoRuleUsers: [],
+    skippedBlockedUsers: []
+  };
+  if (!plan || !plan.days) return summary;
+
+  useDays.forEach(day => {
+    const dayState = plan.days[String(day)];
+    if (!dayState) return;
+    ['out', 'ret'].forEach(dir => {
+      if (!dayState[dir]) return;
+      const result = autoAssignDir(ctx, { day, dir, dirState: dayState[dir] });
+      summary.placed += result.placed.length;
+      summary.skippedNoRule += result.skippedNoRule.length;
+      summary.skippedBlocked += result.skippedBlocked.length;
+      summary.placedUsers.push(...result.placed);
+      summary.skippedNoRuleUsers.push(...result.skippedNoRule);
+      summary.skippedBlockedUsers.push(...result.skippedBlocked);
+    });
+  });
+  return summary;
 }
 
 /* ------------------------------------------------------------

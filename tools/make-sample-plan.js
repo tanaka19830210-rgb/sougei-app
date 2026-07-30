@@ -3,7 +3,7 @@
 
      node tools/make-sample-plan.js 八幡 2026-08-03
 
-   同梱のダミーマスタから「自動で割り当て」を回して、
+   同梱のダミーマスタから「いつもの車」ルールで自動割り当てを回して、
    data/{事業所}/plans/{週}.json を作ります。
    印刷画面の見本を作りたいときだけ使ってください。
    ============================================================ */
@@ -32,12 +32,12 @@ const ctx = A.createContext({ facility, users, vans, ngPairs });
 
 const plan = S.createEmptyPlan({ facilityId, weekStart, vans, days: facility.days });
 
+/* 空の週に、いつもの車ルールで空席を埋める（迎え・送りとも） */
+A.autoAssignWeek(ctx, { plan, days: facility.days });
 facility.days.forEach(day => {
-  const out = A.autoAssign(ctx, { day, dir: 'out', prevState: plan.days[String(day)].out });
-  plan.days[String(day)].out = out.state;
-  plan.days[String(day)].ret = A.copyOutToReturn(ctx, { day, outState: out.state });
-  if (out.leftOut.length) {
-    console.log(`${day}曜：${out.leftOut.map(u => u.name).join('・')} が乗り切りませんでした`);
+  const left = A.unassignedUsers(ctx, plan.days[String(day)].out, day, 'out');
+  if (left.length) {
+    console.log(`${day}曜の迎え：${left.map(u => u.name).join('・')} がまだ乗っていません`);
   }
 });
 

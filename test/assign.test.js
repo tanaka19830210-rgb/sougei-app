@@ -3,10 +3,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as A from '../js/core/assign.js';
-import { capacity, vansForDay } from '../js/core/schema.js';
+import { vansForDay } from '../js/core/schema.js';
 import { makeFixture, makeVans, makeUsers } from './fixture.js';
 import { createContext } from '../js/core/assign.js';
 import { makeFacility, makeNgPairs } from './fixture.js';
+import { normalizeUsers } from '../js/core/schema.js';
 
 /* ---------- 時刻 ---------- */
 test('時刻の計算：文字と分の行き来', () => {
@@ -56,75 +57,166 @@ test('その日に来る人だけを数える。送り不要の方は送りに�
   assert.deepEqual(A.targetUsers(ctx, 6, 'out').map(u => u.id), ['u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7']);
 });
 
-/* ---------- 自動割り当て ---------- */
-test('自動割り当て：全員が乗り、車椅子わく・NGペア・定員を守る', () => {
+test('usualVanId：曜日×迎え/送り。未設定は null', () => {
+  const users = makeUsers();
+  const u1 = users.find(u => u.id === 'u1');
+  assert.equal(A.usualVanId(u1, 1, 'out'), 'v1');
+  assert.equal(A.usualVanId(u1, 1, 'ret'), 'v1');
+  const u3 = users.find(u => u.id === 'u3');
+  assert.equal(A.usualVanId(u3, 1, 'out'), 'v2');
+  assert.equal(A.usualVanId(u3, 1, 'ret'), null, '送りは未設定');
+  const bare = { id: 'x', usualVans: undefined };
+  assert.equal(A.usualVanId(bare, 1, 'out'), null);
+});
+
+/* ---------- ルールどおりの自動割り当て ---------- */
+test('自動割り当て：空席だけ埋め、いつもの車どおりに乗る', () => {
   const { ctx, plan } = makeFixture();
-  const { state, leftOut } = A.autoAssign(ctx, { day: 1, dir: 'out', prevState: plan.days['1'].out });
-  assert.deepEqual(leftOut, []);
+  const dirState = plan.days['1'].out;
+  const { placed, skippedNoRule } = A.autoAssignDir(ctx, { day: 1, dir: 'out', dirState });
+  assert.ok(placed.map(u => u.id).includes('u1'));
+  assert.ok(placed.map(u => u.id).includes('u2'));
+  assert.equal(A.findRow(ctx, dirState, 'u1', 1).vanId, 'v1');
+  assert.equal(A.findRow(ctx, dirState, 'u2', 1).vanId, 'v2');
+  assert.ok(skippedNoRule.map(u => u.id).includes('u6'), 'usualVans 未設定は乗せない');
+  assert.equal(A.findRow(ctx, dirState, 'u6', 1), null);
+});
 
-  const placed = A.placedIds(ctx, state, 1);
-  assert.equal(placed.length, 6);
-  assert.equal(new Set(placed).size, 6, '同じ人が2回乗っていない');
+test('自動割り当て：すでに乗っている人・席はそのまま', () => {
+  const { ctx, plan } = makeFixture();
+  const dirState = plan.days['1'].out;
+  dirState.vans.v1.rows[0].userId = 'u3';   /* ルール上は v2 だが、すでに乗っている */
+  dirState.vans.v1.rows[0].time = '08:20';
+  dirState.vans.v1.memo = '残してね';
+  dirState.vans.v1.driver = '佐々木';
 
-  vansForDay(ctx.vans, 1).forEach(van => {
-    const riders = A.ridersIn(state, van.id);
-    assert.ok(riders.length <= capacity(van), `${van.name} が定員をこえていない`);
-    assert.ok(A.wheelchairCount(ctx, state, van.id) <= van.wheelchairSeats, `${van.name} の車椅子わくを守っている`);
-    riders.forEach(id => {
-      assert.equal(A.ngPartnerIn(ctx, state, van.id, id), null,
-        `${van.name} に同乗NGペアが同じ車になっていない`);
-    });
+  A.autoAssignDir(ctx, { day: 1, dir: 'out', dirState });
+
+  assert.equal(dirState.vans.v1.rows[0].userId, 'u3', '既存の配置を動かさない');
+  assert.equal(dirState.vans.v1.memo, '残してね');
+  assert.equal(dirState.vans.v1.driver, '佐々木');
+  assert.equal(A.findRow(ctx, dirState, 'u1', 1).vanId, 'v1', '空席に新規が入る');
+  assert.notEqual(A.findRow(ctx, dirState, 'u1', 1).index, 0, '先頭の既存席は触らない');
+});
+
+test('自動割り当て：曜日×迎え/送りで車がかわる', () => {
+  const users = normalizeUsers({
+    users: [
+      {
+        id: 'u1', name: '一郎', area: 'あ', days: [1, 2],
+        usualVans: {
+          '1': { out: 'v1', ret: 'v2' },
+          '2': { out: 'v2', ret: 'v1' }
+        }
+      }
+    ]
   });
+  const vans = makeVans();
+  const ctx = createContext({ facility: makeFacility(), users, vans, ngPairs: [] });
+  const { plan } = makeFixture({ users });
+
+  A.autoAssignDir(ctx, { day: 1, dir: 'out', dirState: plan.days['1'].out });
+  A.autoAssignDir(ctx, { day: 1, dir: 'ret', dirState: plan.days['1'].ret });
+  A.autoAssignDir(ctx, { day: 2, dir: 'out', dirState: plan.days['2'].out });
+
+  assert.equal(A.findRow(ctx, plan.days['1'].out, 'u1', 1).vanId, 'v1');
+  assert.equal(A.findRow(ctx, plan.days['1'].ret, 'u1', 1).vanId, 'v2');
+  assert.equal(A.findRow(ctx, plan.days['2'].out, 'u1', 2).vanId, 'v2');
+});
+
+test('自動割り当て：定員が足りないとスキップしてプールに残る', () => {
+  const vans = makeVans([
+    { id: 'v1', name: '小さい車', seats: 1, wheelchairSeats: 0, driver: '', days: [1] }
+  ]);
+  const users = normalizeUsers({
+    users: [
+      { id: 'a', name: 'あ', area: 'X', days: [1], usualVans: { '1': { out: 'v1', ret: null } } },
+      { id: 'b', name: 'い', area: 'X', days: [1], usualVans: { '1': { out: 'v1', ret: null } } }
+    ]
+  });
+  const ctx = createContext({ facility: makeFacility(), users, vans, ngPairs: [] });
+  const { plan } = makeFixture({ users, vans: [
+    { id: 'v1', name: '小さい車', seats: 1, wheelchairSeats: 0, driver: '', days: [1] }
+  ] });
+  /* makeFixture の makeVans(options.vans) は extra 配列をそのまま使う */
+  const dirState = plan.days['1'].out;
+  const { placed, skippedBlocked } = A.autoAssignDir(ctx, { day: 1, dir: 'out', dirState });
+  assert.equal(placed.length, 1);
+  assert.equal(skippedBlocked.length, 1);
+  assert.equal(A.ridersIn(dirState, 'v1').length, 1);
+});
+
+test('自動割り当て：車椅子わくが足りないとスキップ', () => {
+  const vans = makeVans([
+    { id: 'v1', name: '軽', seats: 3, wheelchairSeats: 0, driver: '', days: [1] }
+  ]);
+  const users = normalizeUsers({
+    users: [
+      { id: 'w', name: '車椅子', area: 'X', wheelchair: true, days: [1],
+        usualVans: { '1': { out: 'v1', ret: null } } }
+    ]
+  });
+  const ctx = createContext({ facility: makeFacility(), users, vans, ngPairs: [] });
+  const plan = makeFixture({
+    users,
+    vans: [{ id: 'v1', name: '軽', seats: 3, wheelchairSeats: 0, driver: '', days: [1] }]
+  }).plan;
+  const { placed, skippedBlocked } = A.autoAssignDir(ctx, {
+    day: 1, dir: 'out', dirState: plan.days['1'].out
+  });
+  assert.equal(placed.length, 0);
+  assert.equal(skippedBlocked.map(u => u.id).join(), 'w');
+});
+
+test('自動割り当て：同乗NGがいる車には乗せない（プールに残す）', () => {
+  const { ctx, plan } = makeFixture();
+  const dirState = plan.days['1'].out;
+  dirState.vans.v1.rows[0].userId = 'u2';   /* u1 と NG。u1 のいつもの車は v1 */
+  const { placed, skippedBlocked } = A.autoAssignDir(ctx, { day: 1, dir: 'out', dirState });
+  assert.ok(skippedBlocked.map(u => u.id).includes('u1'));
+  assert.equal(A.findRow(ctx, dirState, 'u1', 1), null);
+  assert.ok(placed.map(u => u.id).includes('u4') || placed.map(u => u.id).includes('u2') === false);
 });
 
 test('自動割り当て：時刻が先頭から7分きざみで入る', () => {
   const { ctx, plan } = makeFixture();
-  const { state } = A.autoAssign(ctx, { day: 1, dir: 'out', prevState: plan.days['1'].out });
+  const dirState = plan.days['1'].out;
+  A.autoAssignDir(ctx, { day: 1, dir: 'out', dirState });
   vansForDay(ctx.vans, 1).forEach(van => {
-    const times = state.vans[van.id].rows.filter(r => r.userId).map(r => r.time);
+    const times = dirState.vans[van.id].rows.filter(r => r.userId).map(r => r.time);
     times.forEach((t, i) => {
       assert.equal(A.toMinutes(t), A.toMinutes('08:20') + i * 7, `${van.name} の${i + 1}人目`);
     });
   });
 });
 
-test('自動割り当て：車椅子わくが足りないと、その方は乗れないまま残る', () => {
-  const vans = makeVans([
-    { id: 'v1', name: '軽', seats: 4, wheelchairSeats: 0, driver: '', days: [1, 2, 3, 4, 5, 6] }
-  ]);
-  const ctx = createContext({ facility: makeFacility(), users: makeUsers(), vans, ngPairs: [] });
-  const { state, leftOut } = A.autoAssign(ctx, { day: 1, dir: 'out' });
-  const leftIds = leftOut.map(u => u.id);
-  assert.ok(leftIds.includes('u4'), '車椅子の方が残る');
-  assert.ok(leftIds.includes('u5'), '車椅子の方が残る');
-  assert.equal(A.ridersIn(state, 'v1').length, 4, '歩ける方で4席うまる');
+test('自動割り当て：週全体（月〜土×迎え送り）を一度に埋める', () => {
+  const { ctx, plan, facility } = makeFixture();
+  const summary = A.autoAssignWeek(ctx, { plan, days: facility.days });
+  assert.ok(summary.placed > 0);
+  assert.ok(summary.skippedNoRule > 0, '未設定の人が残る');
+
+  /* 月曜の迎えに u1 がいる */
+  assert.equal(A.findRow(ctx, plan.days['1'].out, 'u1', 1).vanId, 'v1');
+  /* 火曜の送りにも（ルールあり） */
+  assert.equal(A.findRow(ctx, plan.days['2'].ret, 'u1', 2).vanId, 'v1');
+  /* 土曜は v2 が走らないので、v2 指定の人は乗れない */
+  const satOut = plan.days['6'].out;
+  assert.equal(A.findRow(ctx, satOut, 'u2', 6), null, '土曜に走らない車の指定はスキップ');
 });
 
-test('自動割り当て：定員が足りないと乗れなかった人数がわかる', () => {
-  const vans = makeVans([
-    { id: 'v1', name: '小さい車', seats: 1, wheelchairSeats: 1, driver: '', days: [1] }
-  ]);
-  const ctx = createContext({ facility: makeFacility(), users: makeUsers(), vans, ngPairs: [] });
-  const { leftOut } = A.autoAssign(ctx, { day: 1, dir: 'out' });
-  assert.equal(leftOut.length, 4);   /* 6人のうち2人だけ乗れる */
-});
+test('自動割り当て：既存の週配置を壊さず空席だけ足す', () => {
+  const { ctx, plan, facility } = makeFixture();
+  plan.days['1'].out.vans.v1.rows[1].userId = 'u3';
+  plan.days['1'].out.vans.v1.rows[1].changed = true;
 
-test('自動割り当て：メモと運転手の指定は消さずに残す', () => {
-  const { ctx, plan } = makeFixture();
-  const prev = plan.days['1'].out;
-  prev.vans.v1.memo = '雨の日は玄関前まで';
-  prev.vans.v1.driver = '佐々木';
-  prev.vans.v2.driver = '';
-  const { state } = A.autoAssign(ctx, { day: 1, dir: 'out', prevState: prev });
-  assert.equal(state.vans.v1.memo, '雨の日は玄関前まで');
-  assert.equal(state.vans.v1.driver, '佐々木');
-  assert.equal(state.vans.v2.driver, '', '「未定」の指定も残る');
-});
+  A.autoAssignWeek(ctx, { plan, days: [1] });
 
-test('自動割り当て：その曜日に走らない車は使わない', () => {
-  const { ctx, plan } = makeFixture();
-  const { state } = A.autoAssign(ctx, { day: 6, dir: 'out', prevState: plan.days['6'].out });
-  assert.deepEqual(Object.keys(state.vans), ['v1']);
+  const row = plan.days['1'].out.vans.v1.rows[1];
+  assert.equal(row.userId, 'u3', '既存の人はその席のまま');
+  assert.equal(row.changed, true, '当日変更の印も残る');
+  assert.ok(A.findRow(ctx, plan.days['1'].out, 'u1', 1), '空席には新規が入る');
+  assert.notEqual(A.findRow(ctx, plan.days['1'].out, 'u1', 1).index, 1, '既存席は触らない');
 });
 
 /* ---------- 同乗NGペア ---------- */

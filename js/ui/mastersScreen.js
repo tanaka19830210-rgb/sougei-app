@@ -142,9 +142,11 @@ function tableEl(headers) {
    ============================================================ */
 function renderUsers(box) {
   const list = state.data.users;
-  const table = tableEl(['お名前', 'エリア', '車椅子', '利用曜日（月〜土）', '送り不要', 'メモ', '使う', '']);
+  const vans = state.data.vans.filter(v => v.active !== false);
+  const table = tableEl(['お名前', 'エリア', '車椅子', '利用曜日（月〜土）', '送り不要', 'いつもの車', 'メモ', '使う', '']);
   const body = table.querySelector('tbody');
   list.forEach(user => {
+    if (!user.usualVans || typeof user.usualVans !== 'object') user.usualVans = {};
     const tr = el('tr');
     tr.appendChild(textCell(user, 'name', 'users', {
       placeholder: '例：井上 健太', className: 'cell-name', tdClass: 'col-name'
@@ -157,20 +159,101 @@ function renderUsers(box) {
     days.appendChild(dayBoxes(user, 'users'));
     tr.appendChild(days);
     tr.appendChild(flagCell(user, 'noReturn', 'users', '送り不要'));
+
+    const usualTd = el('td', 'col-usual');
+    const toggle = el('button', 'btn plain usual-toggle', usualVansSummary(user, vans));
+    toggle.type = 'button';
+    toggle.setAttribute('aria-expanded', 'false');
+    const detailTr = el('tr', 'usual-detail hide');
+    const detailTd = el('td');
+    detailTd.colSpan = 9;
+    detailTd.appendChild(usualVansPanel(user, vans));
+    detailTr.appendChild(detailTd);
+    toggle.onclick = () => {
+      const open = detailTr.classList.toggle('hide') === false;
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.textContent = open ? 'とじる' : usualVansSummary(user, vans);
+    };
+    usualTd.appendChild(toggle);
+    tr.appendChild(usualTd);
+
     tr.appendChild(textCell(user, 'note', 'users', { placeholder: '' }));
     tr.appendChild(flagCell(user, 'active', 'users', '使う'));
     tr.appendChild(deleteCell(list, user, 'users', user.name));
     body.appendChild(tr);
+    body.appendChild(detailTr);
   });
   box.appendChild(wrapTable(table));
+  box.appendChild(el('p', 'lead',
+    '「いつもの車」は、曜日ごとに迎えと送りを別々に選べます。「なし」の曜日・便は、自動割り当てでは乗せません。'));
   box.appendChild(addButton('利用者を追加', () => {
     list.push({
       id: nextId(list, 'u'), name: '', area: '', wheelchair: false,
-      days: [1, 2, 3, 4, 5], noReturn: false, note: '', active: true
+      days: [1, 2, 3, 4, 5], noReturn: false, note: '', active: true, usualVans: {}
     });
     markDirty('users');
     renderTab();
   }));
+}
+
+function usualVansSummary(user, vans) {
+  const set = new Set();
+  DAYS.forEach(d => {
+    const entry = user.usualVans && user.usualVans[String(d.n)];
+    if (!entry) return;
+    ['out', 'ret'].forEach(dir => {
+      if (entry[dir]) {
+        const van = vans.find(v => v.id === entry[dir]);
+        set.add(van ? van.name : entry[dir]);
+      }
+    });
+  });
+  if (!set.size) return '未設定（ひらく）';
+  const names = [...set];
+  if (names.length <= 2) return names.join('・') + '（ひらく）';
+  return `${names[0]}ほか${names.length - 1}台（ひらく）`;
+}
+
+function usualVansPanel(user, vans) {
+  const panel = el('div', 'usual-panel');
+  const head = el('div', 'usual-head');
+  head.appendChild(el('span', null, '曜日'));
+  head.appendChild(el('span', null, '迎え'));
+  head.appendChild(el('span', null, '送り'));
+  panel.appendChild(head);
+
+  DAYS.forEach(d => {
+    const key = String(d.n);
+    const row = el('div', 'usual-row');
+    row.appendChild(el('span', 'usual-day', d.label + '曜'));
+    row.appendChild(vanSelect(user, key, 'out', vans));
+    row.appendChild(vanSelect(user, key, 'ret', vans));
+    panel.appendChild(row);
+  });
+  return panel;
+}
+
+function vanSelect(user, dayKey, dir, vans) {
+  const select = el('select', 'usual-select');
+  const none = el('option', null, 'なし');
+  none.value = '';
+  select.appendChild(none);
+  vans.forEach(v => {
+    const opt = el('option', null, v.name || v.id);
+    opt.value = v.id;
+    select.appendChild(opt);
+  });
+  const entry = user.usualVans[dayKey] || { out: null, ret: null };
+  select.value = entry[dir] || '';
+  select.onchange = () => {
+    if (!user.usualVans[dayKey]) user.usualVans[dayKey] = { out: null, ret: null };
+    user.usualVans[dayKey][dir] = select.value || null;
+    /* どちらもなしならキーを消して「未設定」にそろえる */
+    const cur = user.usualVans[dayKey];
+    if (!cur.out && !cur.ret) delete user.usualVans[dayKey];
+    markDirty('users');
+  };
+  return select;
 }
 
 function renderVans(box) {

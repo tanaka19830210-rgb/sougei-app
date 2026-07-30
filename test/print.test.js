@@ -14,11 +14,11 @@ function build() {
     { name: '佐々木', initial: '佐', color: 'blue' }
   ] });
 
-  /* 月曜だけ埋める */
-  const out = A.autoAssign(ctx, { day: 1, dir: 'out', prevState: plan.days['1'].out }).state;
-  plan.days['1'].out = out;
-  plan.days['1'].ret = A.copyOutToReturn(ctx, { day: 1, outState: out });
-  plan.days['1'].out.vans.v1.rows[0].changed = true;
+  /* 月曜だけ埋める（いつもの車ルール） */
+  const summary = A.autoAssignWeek(ctx, { plan, days: [1] });
+  assert.ok(summary.placed > 0);
+  const first = plan.days['1'].out.vans.v1.rows.find(r => r.userId);
+  if (first) first.changed = true;
   plan.days['1'].out.vans.v1.memo = 'ヘルパー迎え';
   plan.days['1'].out.vans.v2.driver = '';               /* その日は未定 */
   plan.days['1'].notes = normalizeNotes([

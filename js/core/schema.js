@@ -76,6 +76,27 @@ export function normalizeFacilities(raw) {
 /* ============================================================
    利用者（user）
    ============================================================ */
+
+/*
+  いつもの車（曜日 × 迎え/送り）。
+  形: { "1": { "out": "v1", "ret": "v2" }, ... }
+  曜日キーは 1=月 … 6=土。値の null / 欠落 = 未設定。
+  古いデータに usualVans が無くても空オブジェクトとして扱い、壊れない。
+*/
+export function normalizeUsualVans(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (let day = 1; day <= 6; day++) {
+    const key = String(day);
+    const entry = raw[key];
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const o = entry.out != null && String(entry.out).trim() !== '' ? str(entry.out) : null;
+    const r = entry.ret != null && String(entry.ret).trim() !== '' ? str(entry.ret) : null;
+    if (o || r) out[key] = { out: o, ret: r };
+  }
+  return out;
+}
+
 export function normalizeUser(raw) {
   const u = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -88,7 +109,8 @@ export function normalizeUser(raw) {
     days: dayList(u.days, []),
     noReturn: bool(u.noReturn),
     note: str(u.note),
-    active: u.active === undefined ? true : bool(u.active)
+    active: u.active === undefined ? true : bool(u.active),
+    usualVans: normalizeUsualVans(u.usualVans)
   };
 }
 

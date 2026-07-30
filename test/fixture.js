@@ -24,13 +24,46 @@ export function makeFacility(extra = {}) {
 export function makeUsers() {
   return normalizeUsers({
     users: [
-      { id: 'u1', name: '一郎', area: 'あエリア', wheelchair: false, days: [1, 2, 3, 4, 5, 6] },
-      { id: 'u2', name: '二郎', area: 'あエリア', wheelchair: false, days: [1, 2, 3, 4, 5, 6] },
-      { id: 'u3', name: '三郎', area: 'いエリア', wheelchair: false, days: [1, 2, 3, 4, 5, 6] },
-      { id: 'u4', name: '四郎', area: 'あエリア', wheelchair: true, days: [1, 2, 3, 4, 5, 6] },
-      { id: 'u5', name: '五郎', area: 'いエリア', wheelchair: true, days: [1, 2, 3, 4, 5, 6] },
+      {
+        id: 'u1', name: '一郎', area: 'あエリア', wheelchair: false, days: [1, 2, 3, 4, 5, 6],
+        usualVans: {
+          '1': { out: 'v1', ret: 'v1' }, '2': { out: 'v1', ret: 'v1' }, '3': { out: 'v1', ret: 'v1' },
+          '4': { out: 'v1', ret: 'v1' }, '5': { out: 'v1', ret: 'v1' }, '6': { out: 'v1', ret: 'v1' }
+        }
+      },
+      {
+        id: 'u2', name: '二郎', area: 'あエリア', wheelchair: false, days: [1, 2, 3, 4, 5, 6],
+        usualVans: {
+          '1': { out: 'v2', ret: 'v2' }, '2': { out: 'v2', ret: 'v2' }, '3': { out: 'v2', ret: 'v2' },
+          '4': { out: 'v2', ret: 'v2' }, '5': { out: 'v2', ret: 'v2' }, '6': { out: 'v2', ret: 'v2' }
+        }
+      },
+      {
+        id: 'u3', name: '三郎', area: 'いエリア', wheelchair: false, days: [1, 2, 3, 4, 5, 6],
+        usualVans: {
+          '1': { out: 'v2', ret: null }, '2': { out: 'v2', ret: null }, '3': { out: 'v2', ret: null },
+          '4': { out: 'v2', ret: null }, '5': { out: 'v2', ret: null }, '6': { out: 'v1', ret: null }
+        }
+      },
+      {
+        id: 'u4', name: '四郎', area: 'あエリア', wheelchair: true, days: [1, 2, 3, 4, 5, 6],
+        usualVans: {
+          '1': { out: 'v1', ret: 'v1' }, '2': { out: 'v1', ret: 'v1' }, '3': { out: 'v1', ret: 'v1' },
+          '4': { out: 'v1', ret: 'v1' }, '5': { out: 'v1', ret: 'v1' }, '6': { out: 'v1', ret: 'v1' }
+        }
+      },
+      {
+        id: 'u5', name: '五郎', area: 'いエリア', wheelchair: true, days: [1, 2, 3, 4, 5, 6],
+        usualVans: {
+          '1': { out: 'v2', ret: 'v2' }, '2': { out: 'v2', ret: 'v2' }, '3': { out: 'v2', ret: 'v2' },
+          '4': { out: 'v2', ret: 'v2' }, '5': { out: 'v2', ret: 'v2' }, '6': { out: 'v1', ret: 'v1' }
+        }
+      },
       { id: 'u6', name: '六郎', area: 'あエリア', wheelchair: false, days: [1, 2, 3, 4, 5, 6], noReturn: true },
-      { id: 'u7', name: '七郎', area: 'いエリア', wheelchair: false, days: [6] }
+      {
+        id: 'u7', name: '七郎', area: 'いエリア', wheelchair: false, days: [6],
+        usualVans: { '6': { out: 'v1', ret: 'v1' } }
+      }
     ]
   });
 }
