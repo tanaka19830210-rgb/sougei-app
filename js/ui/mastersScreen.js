@@ -72,7 +72,7 @@ function dayBoxes(item, tab) {
 }
 
 function textCell(item, key, tab, options = {}) {
-  const input = el('input');
+  const input = el('input', options.className || null);
   input.type = options.type || 'text';
   input.value = item[key] == null ? '' : item[key];
   if (options.placeholder) input.placeholder = options.placeholder;
@@ -85,7 +85,7 @@ function textCell(item, key, tab, options = {}) {
     item[key] = options.type === 'number' ? Math.max(0, Number(input.value) || 0) : input.value;
     markDirty(tab);
   };
-  const td = el('td');
+  const td = el('td', options.tdClass || null);
   td.appendChild(input);
   return td;
 }
@@ -146,8 +146,12 @@ function renderUsers(box) {
   const body = table.querySelector('tbody');
   list.forEach(user => {
     const tr = el('tr');
-    tr.appendChild(textCell(user, 'name', 'users', { placeholder: '例：井上 健太' }));
-    tr.appendChild(textCell(user, 'area', 'users', { placeholder: '例：佐伯区', list: 'arealist' }));
+    tr.appendChild(textCell(user, 'name', 'users', {
+      placeholder: '例：井上 健太', className: 'cell-name', tdClass: 'col-name'
+    }));
+    tr.appendChild(textCell(user, 'area', 'users', {
+      placeholder: '例：佐伯区', list: 'arealist', className: 'cell-area', tdClass: 'col-area'
+    }));
     tr.appendChild(flagCell(user, 'wheelchair', 'users', '車椅子'));
     const days = el('td');
     days.appendChild(dayBoxes(user, 'users'));
@@ -175,7 +179,9 @@ function renderVans(box) {
   const body = table.querySelector('tbody');
   list.forEach(van => {
     const tr = el('tr');
-    tr.appendChild(textCell(van, 'name', 'vans', { placeholder: '例：ハイエース' }));
+    tr.appendChild(textCell(van, 'name', 'vans', {
+      placeholder: '例：ハイエース', className: 'cell-name', tdClass: 'col-name'
+    }));
     tr.appendChild(textCell(van, 'seats', 'vans', { type: 'number' }));
     tr.appendChild(textCell(van, 'wheelchairSeats', 'vans', { type: 'number' }));
     tr.appendChild(textCell(van, 'driver', 'vans', { placeholder: '例：山田', list: 'driverlist' }));
@@ -205,13 +211,14 @@ function renderNgPairs(box) {
   const body = table.querySelector('tbody');
 
   const userSelect = (pair, key) => {
-    const td = el('td');
-    const select = el('select');
+    const td = el('td', 'col-name');
+    const select = el('select', 'cell-name');
     const blank = el('option', null, '（えらぶ）');
     blank.value = '';
     select.appendChild(blank);
     users.forEach(u => {
-      const opt = el('option', null, `${u.name}（${u.id}）`);
+      // 画面には氏名だけ出す。保存する値は利用者idのまま。
+      const opt = el('option', null, u.name || '（名前なし）');
       opt.value = u.id;
       if (u.id === pair[key]) opt.selected = true;
       select.appendChild(opt);
