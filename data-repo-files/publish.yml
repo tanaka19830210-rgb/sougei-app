@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           # ★★★ ここだけ、ご自分のGitHubアカウント名に書きかえてください ★★★
-          repository: YOUR-ACCOUNT/soutai-app
+          repository: YOUR-ACCOUNT/sougei-app
           path: app
 
       - name: Node を用意する
