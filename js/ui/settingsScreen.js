@@ -60,7 +60,7 @@ export async function start() {
   }
 
   /* 読み書きするファイルの場所を見せる（あとで手で直すときの手がかり） */
-  const fid = config.facilityId || (form.facility.value || 'yahata');
+  const fid = config.facilityId || (form.facility.value || 'funny');
   document.getElementById('pathlist').innerHTML = [
     paths.facilitiesPath(),
     paths.usersPath(fid),

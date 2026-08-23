@@ -53,7 +53,7 @@ export function fillFacilitySelect(select, facilities, currentId, onChange) {
   };
 }
 
-/* URL の ?facility=yahata&week=2026-08-03 を読む */
+/* URL の ?facility=funny&week=2026-08-03 を読む */
 export function readParams() {
   const params = new URLSearchParams(location.search);
   return {

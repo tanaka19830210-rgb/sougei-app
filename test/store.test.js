@@ -52,11 +52,11 @@ test('localStore：同梱のダミーを読み、保存すると端末の中に�
   const storage = fakeStorage();
   const store = createLocalStore({
     storage,
-    fetchImpl: seedFetch({ 'data/facilities.json': { facilities: [{ id: 'yahata' }] } })
+    fetchImpl: seedFetch({ 'data/facilities.json': { facilities: [{ id: 'funny' }] } })
   });
   const first = await store.readJson('data/facilities.json');
   assert.equal(first.sha, 'seed');
-  assert.equal(first.data.facilities[0].id, 'yahata');
+  assert.equal(first.data.facilities[0].id, 'funny');
 
   const written = await store.writeJson('data/facilities.json', { facilities: [{ id: 'x' }] }, { sha: first.sha });
   const second = await store.readJson('data/facilities.json');
@@ -67,7 +67,7 @@ test('localStore：同梱のダミーを読み、保存すると端末の中に�
 
 test('localStore：無いファイルは null（まだ作られていない、として扱う）', async () => {
   const store = createLocalStore({ storage: fakeStorage(), fetchImpl: seedFetch({}) });
-  assert.equal(await store.readJson('data/yahata/plans/2026-08-03.json'), null);
+  assert.equal(await store.readJson('data/funny/plans/2026-08-03.json'), null);
 });
 
 test('localStore：古い sha で保存しようとすると「先に保存されました」になる', async () => {
@@ -101,16 +101,16 @@ test('localStore：clear で控えを消すと、また同梱のダミーにも�
 test('githubStore：ファイルを読む（Base64をほどいて JSON にする）', async () => {
   const calls = [];
   const store = createGithubStore({
-    owner: 'tanaka', repo: 'soutai-data', branch: 'main', token: 'tok',
+    owner: 'tanaka', repo: 'sougei-data', branch: 'main', token: 'tok',
     fetchImpl: async (url, init) => {
       calls.push({ url, init });
       return ghResponse(200, { sha: 'abc123', encoding: 'base64', content: encodeBase64Utf8('{"users":[{"name":"井上 健太"}]}') });
     }
   });
-  const result = await store.readJson('data/yahata/users.json');
+  const result = await store.readJson('data/funny/users.json');
   assert.equal(result.sha, 'abc123');
   assert.equal(result.data.users[0].name, '井上 健太');
-  assert.match(calls[0].url, /repos\/tanaka\/soutai-data\/contents\/data\/yahata\/users\.json\?ref=main/);
+  assert.match(calls[0].url, /repos\/tanaka\/sougei-data\/contents\/data\/funny\/users\.json\?ref=main/);
   assert.equal(calls[0].init.headers.Authorization, 'Bearer tok');
 });
 
@@ -131,15 +131,15 @@ test('githubStore：保存すると sha とコミットメッセージを送る'
       return ghResponse(200, { content: { sha: 'newsha' } });
     }
   });
-  const result = await store.writeJson('data/yahata/plans/2026-08-03.json', { weekStart: '2026-08-03' }, {
+  const result = await store.writeJson('data/funny/plans/2026-08-03.json', { weekStart: '2026-08-03' }, {
     sha: 'oldsha',
-    message: '送迎表 八幡 2026-08-03週 を更新'
+    message: '送迎表 ファニー 2026-08-03週 を更新'
   });
   assert.equal(result.sha, 'newsha');
   assert.equal(sent.method, 'PUT');
   assert.equal(sent.body.sha, 'oldsha');
   assert.equal(sent.body.branch, 'main');
-  assert.equal(sent.body.message, '送迎表 八幡 2026-08-03週 を更新');
+  assert.equal(sent.body.message, '送迎表 ファニー 2026-08-03週 を更新');
   assert.equal(decodeBase64Utf8(sent.body.content), JSON.stringify({ weekStart: '2026-08-03' }, null, 2) + '\n');
 });
 

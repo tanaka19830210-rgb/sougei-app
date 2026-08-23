@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "facilityId": "yahata",
+  "facilityId": "funny",
   "updatedAt": "2026-07-29T00:00:00.000Z",
   "drivers": [
     { "id": "d1", "name": "山田", "initial": "山", "color": "green" },

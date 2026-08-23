@@ -70,9 +70,9 @@ test('マスタ：利用者・車両・NGペア・運転手のつじつまが合
 });
 
 test('マスタ：その曜日の定員が、来る人数に足りている（同梱のダミーで確かめる）', () => {
-  const facility = facilities.find(f => f.id === 'yahata');
-  const users = S.normalizeUsers(readJson('data/yahata/users.json'));
-  const vans = S.normalizeVans(readJson('data/yahata/vans.json'));
+  const facility = facilities.find(f => f.id === 'funny');
+  const users = S.normalizeUsers(readJson('data/funny/users.json'));
+  const vans = S.normalizeVans(readJson('data/funny/vans.json'));
   facility.days.forEach(day => {
     const coming = users.filter(u => u.days.includes(day));
     const seats = S.vansForDay(vans, day).reduce((sum, v) => sum + S.capacity(v), 0);

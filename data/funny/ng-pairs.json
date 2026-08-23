@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "facilityId": "yahata",
+  "facilityId": "funny",
   "updatedAt": "2026-07-29T00:00:00.000Z",
   "pairs": [
     { "a": "u01", "b": "u03", "reason": "車内で言い合いになることがある" },

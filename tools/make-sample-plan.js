@@ -1,7 +1,7 @@
 /* ============================================================
    見本の週次プランを作るための小道具（ふだんは使いません）
 
-     node tools/make-sample-plan.js 八幡 2026-08-03
+     node tools/make-sample-plan.js ファニー 2026-08-03
 
    同梱のダミーマスタから「いつもの車」ルールで自動割り当てを回して、
    data/{事業所}/plans/{週}.json を作ります。
@@ -16,7 +16,7 @@ import * as A from '../js/core/assign.js';
 import { weekKeyOf, parseDateKey } from '../js/core/dates.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const facilityId = process.argv[2] || 'yahata';
+const facilityId = process.argv[2] || 'funny';
 const asked = parseDateKey(process.argv[3] || '');
 const weekStart = asked ? weekKeyOf(asked) : weekKeyOf(new Date());
 

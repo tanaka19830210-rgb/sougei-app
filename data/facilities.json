@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-07-29T00:00:00.000Z",
+  "updatedAt": "2026-08-23T00:00:00.000Z",
   "facilities": [
     {
-      "id": "yahata",
-      "name": "生活介護 八幡",
-      "shortName": "八幡",
+      "id": "funny",
+      "name": "ファニー生活介護",
+      "shortName": "ファニー",
       "company": "株式会社障がい者ライフサポート",
       "address": "広島市佐伯区",
       "printTitle": "ファニー送迎表",
@@ -20,12 +20,12 @@
       }
     },
     {
-      "id": "yahatagaoka",
-      "name": "生活介護 八幡ヶ丘",
-      "shortName": "八幡ヶ丘",
+      "id": "hitoiki",
+      "name": "ひといき生活介護",
+      "shortName": "ひといき",
       "company": "株式会社障がい者ライフサポート",
       "address": "広島市佐伯区",
-      "printTitle": "送迎表",
+      "printTitle": "ひといき送迎表",
       "days": [1, 2, 3, 4, 5, 6],
       "startTimes": { "out": "08:20", "ret": "15:30" },
       "stepMinutes": 7,
@@ -37,33 +37,20 @@
       }
     },
     {
-      "id": "toshimatsu",
-      "name": "生活介護 利松",
-      "shortName": "利松",
+      "id": "fit",
+      "name": "ふぃっと生活介護",
+      "shortName": "ふぃっと",
       "company": "株式会社障がい者ライフサポート",
       "address": "広島市佐伯区",
-      "printTitle": "送迎表",
-      "days": [1, 2, 3, 4, 5, 6],
-      "startTimes": { "out": "08:30", "ret": "15:40" },
-      "stepMinutes": 7,
-      "areas": {
-        "佐伯区": "#7faad5",
-        "廿日市": "#4aa8a0"
-      }
-    },
-    {
-      "id": "misuzuen",
-      "name": "生活介護 美鈴園",
-      "shortName": "美鈴園",
-      "company": "株式会社障がい者ライフサポート",
-      "address": "広島市佐伯区",
-      "printTitle": "送迎表",
+      "printTitle": "ふぃっと送迎表",
       "days": [1, 2, 3, 4, 5, 6],
       "startTimes": { "out": "08:20", "ret": "15:30" },
       "stepMinutes": 7,
       "areas": {
         "佐伯区": "#7faad5",
-        "西区": "#e084b3"
+        "西区": "#e084b3",
+        "中区": "#9b8ac4",
+        "廿日市": "#4aa8a0"
       }
     }
   ]

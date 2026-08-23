@@ -11,7 +11,7 @@
       → 同じ依頼で何度も動かないようにするため
 
    ためしに動かす（送信はしない）：
-     node tools/publish/run.js --dry-run --facility yahata --week 2026-08-03
+     node tools/publish/run.js --dry-run --facility funny --week 2026-08-03
    ============================================================ */
 
 import { readdir, rm, mkdir, writeFile } from 'node:fs/promises';

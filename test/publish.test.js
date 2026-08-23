@@ -50,19 +50,19 @@ function memoryStore() {
   };
 }
 
-const YAHATA = { id: 'yahata', name: '生活介護 八幡', shortName: '八幡' };
+const FUNNY = { id: 'funny', name: 'ファニー生活介護', shortName: 'ファニー' };
 
 /* ============================================================
    置き場所
    ============================================================ */
 test('配信依頼：置き場所は publish-requests/事業所-週.json', () => {
-  assert.equal(publishRequestPath('yahata', '2026-08-03'), 'publish-requests/yahata-2026-08-03.json');
+  assert.equal(publishRequestPath('funny', '2026-08-03'), 'publish-requests/funny-2026-08-03.json');
   assert.equal(PUBLISH_ROOT, 'publish-requests');
 });
 
 test('配信依頼：終わったものは done/ に移す（同じ依頼で何度も動かないように）', () => {
-  const done = publishDonePath('yahata', '2026-08-03', '20260729T093000');
-  assert.equal(done, 'publish-requests/done/yahata-2026-08-03-20260729T093000.json');
+  const done = publishDonePath('funny', '2026-08-03', '20260729T093000');
+  assert.equal(done, 'publish-requests/done/funny-2026-08-03-20260729T093000.json');
   /* done/ の中は publish-requests/*.json に当たらないので、Actions が再び動かない */
   assert.ok(done.startsWith('publish-requests/done/'));
 });
@@ -72,14 +72,14 @@ test('配信依頼：終わったものは done/ に移す（同じ依頼で何�
    ============================================================ */
 test('配信依頼：だれが・いつ・どこの・どの週かが入る', () => {
   const request = createPublishRequest({
-    facility: YAHATA,
+    facility: FUNNY,
     weekStart: '2026-08-03',
     requestedBy: '田中',
     now: new Date('2026-07-29T09:30:00Z')
   });
   assert.equal(request.schemaVersion, PUBLISH_SCHEMA_VERSION);
-  assert.equal(request.facilityId, 'yahata');
-  assert.equal(request.facilityName, '生活介護 八幡');
+  assert.equal(request.facilityId, 'funny');
+  assert.equal(request.facilityName, 'ファニー生活介護');
   assert.equal(request.weekStart, '2026-08-03');
   assert.equal(request.requestedBy, '田中');
   assert.equal(request.requestedAt, '2026-07-29T09:30:00.000Z');
@@ -88,26 +88,26 @@ test('配信依頼：だれが・いつ・どこの・どの週かが入る', ()
 });
 
 test('トークに出る本文：やさしい日本語で、事業所と日付の範囲が分かる', () => {
-  const text = publishMessageText({ facility: YAHATA, weekStart: '2026-08-03', requestedBy: '田中' });
+  const text = publishMessageText({ facility: FUNNY, weekStart: '2026-08-03', requestedBy: '田中' });
   assert.equal(text,
     '送迎表ができました\n' +
-    '生活介護 八幡　8/3(月)〜8/8(土)\n' +
+    'ファニー生活介護　8/3(月)〜8/8(土)\n' +
     '（田中 が確定しました）\n' +
     '当日の変更は、必ず事務所へご連絡ください。');
 });
 
 test('トークに出る本文：名前の設定がなくても出せる', () => {
-  const text = publishMessageText({ facility: YAHATA, weekStart: '2026-08-03', requestedBy: '' });
+  const text = publishMessageText({ facility: FUNNY, weekStart: '2026-08-03', requestedBy: '' });
   assert.ok(!text.includes('（'));
   assert.match(text, /8\/3\(月\)〜8\/8\(土\)/);
 });
 
 test('画像のファイル名は、事業所と週が分かる形（日本語は使わない）', () => {
-  assert.equal(publishImageName({ facilityId: 'yahata', weekStart: '2026-08-03' }), 'soutai-yahata-2026-08-03.png');
+  assert.equal(publishImageName({ facilityId: 'funny', weekStart: '2026-08-03' }), 'soutai-funny-2026-08-03.png');
 });
 
 test('配信の結果：うまくいった記録を書き足せる', () => {
-  const request = createPublishRequest({ facility: YAHATA, weekStart: '2026-08-03', requestedBy: '田中' });
+  const request = createPublishRequest({ facility: FUNNY, weekStart: '2026-08-03', requestedBy: '田中' });
   const done = withResult(request, { ok: true, detail: '送信しました', imageBytes: 240000, at: new Date('2026-07-29T09:31:00Z') });
   assert.equal(done.status, 'done');
   assert.equal(done.requestedBy, '田中', '依頼のときの内容は残る');
@@ -118,7 +118,7 @@ test('配信の結果：うまくいった記録を書き足せる', () => {
 });
 
 test('配信の結果：失敗も理由つきで残る（Actions のログだけでなくファイルにも）', () => {
-  const request = createPublishRequest({ facility: YAHATA, weekStart: '2026-08-03' });
+  const request = createPublishRequest({ facility: FUNNY, weekStart: '2026-08-03' });
   const failed = withResult(request, { ok: false, detail: 'GitHub Secrets が足りません：LW_BOT_ID（Bot ID）' });
   assert.equal(failed.status, 'failed');
   assert.equal(failed.results[0].ok, false);
@@ -126,7 +126,7 @@ test('配信の結果：失敗も理由つきで残る（Actions のログだけ
 });
 
 test('配信依頼：こわれた内容でも読み飛ばせる形に整える', () => {
-  const r = normalizePublishRequest({ facilityId: 'yahata', status: 'なにか変な値', results: 'ちがう型' });
+  const r = normalizePublishRequest({ facilityId: 'funny', status: 'なにか変な値', results: 'ちがう型' });
   assert.equal(r.status, 'pending');
   assert.deepEqual(r.results, []);
   assert.equal(r.weekStart, '');
@@ -136,16 +136,16 @@ test('配信依頼：こわれた内容でも読み飛ばせる形に整える',
 /* ============================================================
    保存（コミット）
    ============================================================ */
-test('repository：配信依頼のコミットメッセージは「配信依頼 八幡 2026-08-03週」', async () => {
+test('repository：配信依頼のコミットメッセージは「配信依頼 ファニー 2026-08-03週」', async () => {
   const store = memoryStore();
   const repo = createRepository(store);
   const result = await repo.savePublishRequest({
-    facility: YAHATA, weekStart: '2026-08-03', requestedBy: '田中'
+    facility: FUNNY, weekStart: '2026-08-03', requestedBy: '田中'
   });
-  assert.equal(store.log[0].path, 'publish-requests/yahata-2026-08-03.json');
-  assert.equal(store.log[0].message, '配信依頼 八幡 2026-08-03週');
-  const saved = JSON.parse(store.files.get('publish-requests/yahata-2026-08-03.json').text);
-  assert.equal(saved.facilityId, 'yahata');
+  assert.equal(store.log[0].path, 'publish-requests/funny-2026-08-03.json');
+  assert.equal(store.log[0].message, '配信依頼 ファニー 2026-08-03週');
+  const saved = JSON.parse(store.files.get('publish-requests/funny-2026-08-03.json').text);
+  assert.equal(saved.facilityId, 'funny');
   assert.equal(saved.status, 'pending');
   assert.equal(result.request.weekStart, '2026-08-03');
 });
@@ -153,11 +153,11 @@ test('repository：配信依頼のコミットメッセージは「配信依頼 
 test('repository：同じ週をもう一度配信しても、上書きできる（前の依頼が残っていても）', async () => {
   const store = memoryStore();
   const repo = createRepository(store);
-  await repo.savePublishRequest({ facility: YAHATA, weekStart: '2026-08-03', requestedBy: '田中' });
+  await repo.savePublishRequest({ facility: FUNNY, weekStart: '2026-08-03', requestedBy: '田中' });
   /* 別の端末で押した想定：sha を知らない状態から、もう一度 */
   const other = createRepository(store);
-  await other.savePublishRequest({ facility: YAHATA, weekStart: '2026-08-03', requestedBy: '中村' });
-  const saved = JSON.parse(store.files.get('publish-requests/yahata-2026-08-03.json').text);
+  await other.savePublishRequest({ facility: FUNNY, weekStart: '2026-08-03', requestedBy: '中村' });
+  const saved = JSON.parse(store.files.get('publish-requests/funny-2026-08-03.json').text);
   assert.equal(saved.requestedBy, '中村');
   assert.equal(store.log.length, 2);
 });
@@ -191,25 +191,25 @@ test('ファイルから読む：無いファイルは null、書くとフォル
   const dir = await mkdtemp(join(tmpdir(), 'soutai-test-'));
   const store = createFsStore(dir);
   assert.equal(await store.readJson('publish-requests/none.json'), null);
-  await store.writeJson('publish-requests/done/yahata-2026-08-03-1.json', { status: 'done' });
-  const back = await store.readJson('publish-requests/done/yahata-2026-08-03-1.json');
+  await store.writeJson('publish-requests/done/funny-2026-08-03-1.json', { status: 'done' });
+  const back = await store.readJson('publish-requests/done/funny-2026-08-03-1.json');
   assert.equal(back.data.status, 'done');
-  const text = await readFile(join(dir, 'publish-requests/done/yahata-2026-08-03-1.json'), 'utf8');
+  const text = await readFile(join(dir, 'publish-requests/done/funny-2026-08-03-1.json'), 'utf8');
   assert.ok(text.endsWith('\n'), '行末で終わる（GitHub で見やすいように）');
 });
 
-test('配信の下ごしらえ：本物のデータ（data/）から八幡の紙面が組める', async () => {
+test('配信の下ごしらえ：本物のデータ（data/）からファニーの紙面が組める', async () => {
   const repo = createRepository(createFsStore(APP_DIR));
   const facilities = await repo.loadFacilities();
-  const facility = facilities.find(f => f.id === 'yahata');
-  assert.ok(facility, 'data/facilities.json に八幡がある');
+  const facility = facilities.find(f => f.id === 'funny');
+  assert.ok(facility, 'data/facilities.json にファニーがある');
 
-  const masters = await repo.loadMasters('yahata');
+  const masters = await repo.loadMasters('funny');
   assert.ok(masters.users.length > 0);
   assert.ok(masters.vans.length > 0);
 
   const loaded = await repo.loadPlan({ facility, vans: masters.vans, weekStart: '2026-08-03' });
-  assert.equal(loaded.exists, true, 'data/yahata/plans/2026-08-03.json が読める');
+  assert.equal(loaded.exists, true, 'data/funny/plans/2026-08-03.json が読める');
 
   const ctx = createContext({
     facility, users: masters.users, vans: masters.vans, ngPairs: masters.ngPairs
@@ -219,7 +219,7 @@ test('配信の下ごしらえ：本物のデータ（data/）から八幡の紙
     weekStart: '2026-08-03', now: new Date(2026, 6, 29, 14, 5)
   });
   assert.match(pageHtml, /ファニー送迎表/);
-  assert.match(pageHtml, /生活介護 八幡/);
+  assert.match(pageHtml, /ファニー生活介護/);
   assert.match(pageHtml, /井上 健太/);
   assert.equal((pageHtml.match(/<th class="d">/g) || []).length, 6, '月〜土の6列');
 

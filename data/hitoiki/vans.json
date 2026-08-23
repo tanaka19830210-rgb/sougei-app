@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "facilityId": "toshimatsu",
+  "facilityId": "hitoiki",
   "updatedAt": "2026-07-29T00:00:00.000Z",
   "vans": [
     { "id": "tv1", "name": "ハイエース", "seats": 5, "wheelchairSeats": 1, "driver": "村上", "days": [1, 2, 3, 4, 5, 6], "note": "", "active": true },
