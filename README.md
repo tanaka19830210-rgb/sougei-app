@@ -28,7 +28,7 @@ HTML・CSS・JavaScript だけです。`npm install` のような準備もいり
 2. 次の2行を、1行ずつコピーして貼りつけ、Enter を押します。
 
 ```
-cd C:\Users\tanak\Projects\soutai-app
+cd C:\Users\hitoi\sougei-app
 node tools/serve.js
 ```
 
@@ -38,7 +38,7 @@ node tools/serve.js
 
 > Python が入っているパソコンなら、こちらでも同じことができます。
 > ```
-> cd C:\Users\tanak\Projects\soutai-app
+> cd C:\Users\hitoi\sougei-app
 > python -m http.server 8080
 > ```
 
@@ -66,8 +66,8 @@ node tools/serve.js
 
 | | 名前の例 | 公開／非公開 | 中身 |
 |---|---|---|---|
-| アプリ用 | `soutai-app` | **public（公開）** | HTML・CSS・JavaScript だけ。**個人情報は入れない** |
-| データ用 | `soutai-data` | **private（非公開）** | 利用者・車両・NGペア・週ごとの送迎表 |
+| アプリ用 | `sougei-app` | **public（公開）** | HTML・CSS・JavaScript だけ。**個人情報は入れない** |
+| データ用 | `sougei-data` | **private（非公開）** | 利用者・車両・NGペア・週ごとの送迎表 |
 
 なぜ2つに分けるのか：アプリを iPad から URL で開けるようにする（GitHub Pages）には、
 アプリ用は公開にする必要があります。利用者のお名前は公開してはいけないので、
@@ -77,16 +77,16 @@ node tools/serve.js
 
 1. <https://github.com> にログインします。
 2. 右上の「＋」→「New repository」を押します。
-3. **Repository name** に `soutai-app` と入れます。
+3. **Repository name** に `sougei-app` と入れます。
 4. **Public** を選びます。
 5. 「Create repository」を押します。
 6. 次の画面に出る「uploading an existing file」を押し、
-   `C:\Users\tanak\Projects\soutai-app` の中身をぜんぶドラッグして入れ、
+   `C:\Users\hitoi\sougei-app` の中身をぜんぶドラッグして入れ、
    下の「Commit changes」を押します。
 7. 上の「Settings」→ 左の「Pages」を開きます。
 8. **Source** で「Deploy from a branch」、**Branch** で `main` と `/ (root)` を選び、「Save」。
 9. 1〜3分待ってページを更新すると、上に URL が出ます。
-   `https://（あなたのアカウント名）.github.io/soutai-app/`
+   `https://（あなたのアカウント名）.github.io/sougei-app/`
 10. この URL を iPad の Safari で開き、**共有 → ホーム画面に追加**しておくと、
     アプリのように1タップで開けます。
 
@@ -95,17 +95,17 @@ node tools/serve.js
 
 **このアプリ用リポジトリに入っている `data/` は、ぜんぶ架空の名前の見本です。**
 公開されている場所なので、**本物の利用者のお名前は、ぜったいに書きこまないでください。**
-本物は、次に作る非公開の `soutai-data` の方に入れます。
+本物は、次に作る非公開の `sougei-data` の方に入れます。
 
 ## 2-2. データ用リポジトリを作る
 
 1. また「＋」→「New repository」。
-2. **Repository name** に `soutai-data`。
+2. **Repository name** に `sougei-data`。
 3. **Private** を選びます（ここが大事です）。
 4. 「Create repository」。
-5. `C:\Users\tanak\Projects\soutai-app\data` フォルダを、**フォルダごと**アップロードします。
+5. `C:\Users\hitoi\sougei-app\data` フォルダを、**フォルダごと**アップロードします。
    （「uploading an existing file」の画面に、`data` フォルダをドラッグします）
-6. これで `data/facilities.json` や `data/yahata/users.json` が入った状態になります。
+6. これで `data/facilities.json` や `data/funny/users.json` が入った状態になります。
 7. 中身のダミーの名前を、本物の利用者に置きかえます。
    直しかたは2つあります。
    - アプリの「マスタ編集」画面で直す（おすすめ）
@@ -122,7 +122,7 @@ node tools/serve.js
 |---|---|
 | Token name | `送迎表アプリ` |
 | Expiration | 90 days（期限。切れたらまた作ります） |
-| Repository access | **Only select repositories** → `soutai-data` だけを選ぶ |
+| Repository access | **Only select repositories** → `sougei-data` だけを選ぶ |
 | Permissions → Repository permissions → **Contents** | **Read and write** |
 
 **Contents 以外はさわらないでください。** これで「データ用リポジトリのファイルを読み書きする」
@@ -140,11 +140,11 @@ node tools/serve.js
 
 | らん | 入れるもの（例） |
 |---|---|
-| リポジトリ名 | `あなたのアカウント名/soutai-data` |
+| リポジトリ名 | `あなたのアカウント名/sougei-data` |
 | ブランチ | `main` |
 | アクセストークン | さきほどコピーした `github_pat_...` |
 | あなたのお名前 | `田中`（だれが保存したかの記録用） |
-| 事業所 | 生活介護 八幡 |
+| 事業所 | ファニー生活介護 |
 
 4. 「つながるか試す」を押して、緑の帯で「つながりました」と出るか確かめます。
 5. 画面の上の札が「**GitHubに保存します**」に変われば、本番の状態です。
@@ -168,7 +168,7 @@ node tools/serve.js
 
 1. 職員が「**確定して配信**」を押します。
 2. アプリが、その週の送迎表を保存し、つづけて
-   `publish-requests/yahata-2026-08-03.json` という**小さな「配信してください」の紙**を
+   `publish-requests/funny-2026-08-03.json` という**小さな「配信してください」の紙**を
    データ用リポジトリに置きます（だれが・いつ・どこの・どの週かが書いてあります）。
 3. それが合図になって、GitHub の中の**お手伝いさん（GitHub Actions）**が動きます。
 4. お手伝いさんが、印刷とまったく同じ紙面を組み立て、**PNG画像**にします。
@@ -211,10 +211,10 @@ node tools/serve.js
 
 ## 3-3. GitHub Secrets に登録する
 
-集めた6つを、**データ用リポジトリ（`soutai-data`）**の金庫に入れます。
+集めた6つを、**データ用リポジトリ（`sougei-data`）**の金庫に入れます。
 ここに入れた値は、あとから人が読むことはできません（GitHub の画面でも見えません）。
 
-1. GitHub で `soutai-data` を開きます。
+1. GitHub で `sougei-data` を開きます。
 2. 上の「**Settings**」→ 左の「**Secrets and variables**」→「**Actions**」を開きます。
 3. 緑の「**New repository secret**」を押し、下の表のとおりに1つずつ登録します。
    **Name はここに書いてあるとおり、大文字で正確に**入れてください。
@@ -235,12 +235,12 @@ node tools/serve.js
 
 ## 3-4. 配信のしくみを、データ用リポジトリに置く
 
-1. `C:\Users\tanak\Projects\soutai-app\data-repo-files\publish.yml` をメモ帳で開きます。
-2. 中の **`repository: YOUR-ACCOUNT/soutai-app`** の1行を、
-   ご自分のアカウント名に書きかえます（例：`repository: tanaka-hiroshima/soutai-app`）。
+1. `C:\Users\hitoi\sougei-app\data-repo-files\publish.yml` をメモ帳で開きます。
+2. 中の **`repository: YOUR-ACCOUNT/sougei-app`** の1行を、
+   ご自分のアカウント名に書きかえます（例：`repository: tanaka-hiroshima/sougei-app`）。
    **ここだけです。**
 3. ファイルの中身を**ぜんぶコピー**します（Ctrl+A → Ctrl+C）。
-4. GitHub で `soutai-data` を開き、「**Add file**」→「**Create new file**」を押します。
+4. GitHub で `sougei-data` を開き、「**Add file**」→「**Create new file**」を押します。
 5. ファイル名のらんに、次を**そのまま**打ちます（`/` も含めて。打つと勝手にフォルダになります）。
 
    ```
@@ -250,15 +250,15 @@ node tools/serve.js
 6. 下の広いらんに、コピーした中身を貼りつけます（Ctrl+V）。
 7. 「**Commit changes**」を押します。
 
-> アプリ用リポジトリ（`soutai-app`）を **private** にした場合は、この方法では中を見られません。
-> その場合は `soutai-app` を public にするか、詳しい人に相談してください。
+> アプリ用リポジトリ（`sougei-app`）を **private** にした場合は、この方法では中を見られません。
+> その場合は `sougei-app` を public にするか、詳しい人に相談してください。
 
 ## 3-5. ためしてみる
 
 1. アプリで、どこかの週をぜんぶ埋めて「保存」します。
 2. 「**確定して配信**」を押し、確認の画面で「配信する」を押します。
 3. 「配信をお願いしました。1〜2分でトークに届きます」と出ます。
-4. GitHub の `soutai-data` の上の「**Actions**」を開くと、動いているところが見られます。
+4. GitHub の `sougei-data` の上の「**Actions**」を開くと、動いているところが見られます。
    - 緑のチェック … うまくいきました。トークを見てください。
    - 赤いバツ … 失敗です。クリックすると**日本語で理由**が出ます。
      失敗した理由は `publish-requests/done/` のファイルにも残ります。
@@ -315,7 +315,7 @@ node tools/serve.js
 # 5. 中身の説明（直す人向け）
 
 ```
-soutai-app/
+sougei-app/
 ├── index.html           割り当て画面
 ├── print.html           印刷画面（A4たて・6台）
 ├── settings.html        設定（トークン・リポジトリ・事業所）
@@ -353,7 +353,7 @@ Playwright を使うのは `tools/publish/` だけで、そこは GitHub Actions
 ## 直したあとに、こわれていないか確かめる
 
 ```
-cd C:\Users\tanak\Projects\soutai-app
+cd C:\Users\hitoi\sougei-app
 node test/run.js       ← 計算の部分のテスト。最後に「fail 0」と出れば大丈夫
 node tools/check.js    ← 書きまちがい探し（文法・ファイルの呼びまちがい・id のずれ）
 ```
@@ -363,7 +363,7 @@ node tools/check.js    ← 書きまちがい探し（文法・ファイルの�
 ## 見本の週次プランを作りなおす
 
 ```
-node tools/make-sample-plan.js yahata 2026-08-03
+node tools/make-sample-plan.js funny 2026-08-03
 ```
 
 ## 配信する画像を、自分のパソコンで見てみる
@@ -371,11 +371,11 @@ node tools/make-sample-plan.js yahata 2026-08-03
 送らずに、できあがる画像だけを作って確かめられます（はじめの1回だけ準備が必要です）。
 
 ```
-cd C:\Users\tanak\Projects\soutai-app\tools\publish
+cd C:\Users\hitoi\sougei-app\tools\publish
 npm install
 npx playwright install chromium
-cd C:\Users\tanak\Projects\soutai-app
-node tools/publish/run.js --dry-run --facility yahata --week 2026-08-03
+cd C:\Users\hitoi\sougei-app
+node tools/publish/run.js --dry-run --facility funny --week 2026-08-03
 ```
 
 `tools/publish/out/` の中に PNG ができます（このフォルダは GitHub に上げません）。
@@ -391,11 +391,11 @@ node tools/publish/run.js --dry-run --facility yahata --week 2026-08-03
 | 「トークンを確認してください」と出る | 期限切れか、権限が足りません。新しい鍵を作り直します（2-3） |
 | 「他の人が先に保存しました」と出る | ほかの人が同じ週を保存しています。読み直してから直します |
 | 「通信できませんでした」と出る | Wi-Fi につながっているか確認します |
-| アプリがどうしても動かない | GitHub の `soutai-data` を開き、`data/事業所/plans/その週.json` を見れば、送迎表の中身は残っています |
+| アプリがどうしても動かない | GitHub の `sougei-data` を開き、`data/事業所/plans/その週.json` を見れば、送迎表の中身は残っています |
 
 ## 配信（LINE WORKS）で困ったとき
 
-まず `soutai-data` の「**Actions**」を開き、赤いバツが付いた行をクリックしてください。
+まず `sougei-data` の「**Actions**」を開き、赤いバツが付いた行をクリックしてください。
 **日本語で理由が出ます**。よくあるものは次のとおりです。
 
 | Actions に出る文 | 意味と直しかた |

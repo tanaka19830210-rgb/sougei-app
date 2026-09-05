@@ -64,7 +64,12 @@ export function normalizeFacility(raw) {
       ret: str(f.startTimes && f.startTimes.ret, '15:30')
     },
     stepMinutes: num(f.stepMinutes, 7) || 7,
-    areas: (f.areas && typeof f.areas === 'object') ? { ...f.areas } : {}
+    areas: (f.areas && typeof f.areas === 'object') ? { ...f.areas } : {},
+    /*
+      配信先のトークルーム。事業所ごとに分けたいときに書く。
+      空なら、GitHub Secrets の LW_CHANNEL_ID（共通のトーク）へ送る。
+    */
+    lwChannelId: str(f.lwChannelId)
   };
 }
 

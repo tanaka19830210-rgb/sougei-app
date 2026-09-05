@@ -259,6 +259,25 @@ test('設定もれ：足りないものを日本語の名前つきで教える',
   }), []);
 });
 
+test('設定もれ：事業所ごとのトークを使うときは、LW_CHANNEL_ID が無くてもよい', () => {
+  const env = {
+    LW_CLIENT_ID: 'a', LW_CLIENT_SECRET: 'b', LW_SERVICE_ACCOUNT: 'c',
+    LW_PRIVATE_KEY: 'd', LW_BOT_ID: 'e'
+  };
+  /* 共通のトークに送るつもりなら、LW_CHANNEL_ID が無いのは「足りない」 */
+  assert.deepEqual(missingSecrets(env), ['LW_CHANNEL_ID（トークルームのチャンネルID）']);
+  /* 事業所ごとのトーク（facilities.json の lwChannelId）を使うなら、要らない */
+  assert.deepEqual(missingSecrets(env, { hasFacilityChannel: true }), []);
+  /* ほかに足りないものは、事業所ごとでも変わらず出る */
+  assert.deepEqual(missingSecrets({}, { hasFacilityChannel: true }), [
+    'LW_CLIENT_ID（Client ID）',
+    'LW_CLIENT_SECRET（Client Secret）',
+    'LW_SERVICE_ACCOUNT（Service Account）',
+    'LW_PRIVATE_KEY（Private Key（秘密鍵））',
+    'LW_BOT_ID（Bot ID）'
+  ]);
+});
+
 test('設定もれ：Bot ID が無いときは、送る前に日本語で止まる', async () => {
   const { c } = client({ options: { botId: '' } });
   await assert.rejects(() => c.createAttachment('a.png'), /LW_BOT_ID/);

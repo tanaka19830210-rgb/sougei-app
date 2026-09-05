@@ -129,11 +129,26 @@ async function handleRequest(repo, store, request) {
     return { imageBytes: buffer.length, detail: `お試し（送信なし）／画像 ${size ? size.width + '×' + size.height : '?'}px` };
   }
 
-  const missing = missingSecrets(process.env);
+  /*
+    送り先のトークルームを決める。
+    事業所ごとに分けたいときは、facilities.json の lwChannelId に書く。
+    書いていない事業所は、これまでどおり LW_CHANNEL_ID（共通のトーク）へ送る。
+  */
+  const facilityChannel = String(facility.lwChannelId || '').trim();
+  const missing = missingSecrets(process.env, { hasFacilityChannel: !!facilityChannel });
   if (missing.length) {
     throw new Error('GitHub Secrets が足りません：' + missing.join('、'));
   }
-  const client = clientFromEnv(process.env, { log });
+  if (facilityChannel) {
+    log(`${facility.name} 専用のトークへ送ります`);
+  } else {
+    log('共通のトーク（LW_CHANNEL_ID）へ送ります');
+  }
+
+  const client = clientFromEnv(process.env, {
+    log,
+    ...(facilityChannel ? { channelId: facilityChannel } : {})
+  });
   const sent = await client.publishImage({ fileName, bytes: buffer, text });
   return {
     imageBytes: buffer.length,

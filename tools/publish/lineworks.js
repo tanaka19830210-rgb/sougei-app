@@ -251,8 +251,13 @@ export function clientFromEnv(env = process.env, extra = {}) {
   });
 }
 
-/* 足りない設定を、日本語の名前で教える */
-export function missingSecrets(env = process.env) {
+/*
+  足りない設定を、日本語の名前で教える。
+
+  hasFacilityChannel を true にすると、LW_CHANNEL_ID は要らないものとして数えます。
+  事業所ごとのトークルーム（facilities.json の lwChannelId）を使う場合です。
+*/
+export function missingSecrets(env = process.env, { hasFacilityChannel = false } = {}) {
   const need = {
     LW_CLIENT_ID: 'Client ID',
     LW_CLIENT_SECRET: 'Client Secret',
@@ -261,5 +266,6 @@ export function missingSecrets(env = process.env) {
     LW_BOT_ID: 'Bot ID',
     LW_CHANNEL_ID: 'トークルームのチャンネルID'
   };
+  if (hasFacilityChannel) delete need.LW_CHANNEL_ID;
   return Object.keys(need).filter(k => !env[k]).map(k => `${k}（${need[k]}）`);
 }

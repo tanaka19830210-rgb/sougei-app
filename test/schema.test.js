@@ -44,6 +44,17 @@ test('capacity / vansForDay', () => {
   assert.deepEqual(S.vansForDay(vans, 6).map(v => v.id), ['v1']);
 });
 
+test('事業所：配信先のトーク（lwChannelId）を読む。無い事業所は空文字', () => {
+  const list = S.normalizeFacilities({
+    facilities: [
+      { id: 'funny', name: 'ファニー生活介護', lwChannelId: 'ch-funny' },
+      { id: 'hitoiki', name: 'ひといき生活介護' }
+    ]
+  });
+  assert.equal(list[0].lwChannelId, 'ch-funny');
+  assert.equal(list[1].lwChannelId, '', '書いていない事業所は空。共通のトークへ送る合図になる');
+});
+
 test('normalizeUser：プロトタイプの wc も読める。使わない方は既定でのぞく', () => {
   const users = S.normalizeUsers({ users: [
     { id: 'a', name: 'あ', area: 'X', wc: true, days: [1, 2] },
