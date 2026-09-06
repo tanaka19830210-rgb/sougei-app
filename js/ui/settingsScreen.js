@@ -71,7 +71,7 @@ export async function start() {
   ].map(p => `<li><code>${escapeHtml(p)}</code></li>`).join('');
 
   /* ---------- 保存 ---------- */
-  document.getElementById('save').onclick = () => {
+  document.getElementById('save').onclick = async () => {
     const next = { ...loadConfig() };
     const parsed = parseRepo(form.repo.value);
     if (form.repo.value.trim() && !parsed) {
@@ -84,7 +84,45 @@ export async function start() {
     next.token = form.token.value.trim();
     next.editorName = form.editor.value.trim();
     next.facilityId = form.facility.value;
-    saveConfig(next);
+
+    /*
+      公開（public）リポジトリを保存先にすると、利用者のお名前が
+      だれでも見られる場所に出てしまう。リポジトリ名の打ちまちがいで
+      それが起きないよう、保存の前に必ず確かめて、公開なら保存しない。
+
+      通信できなかったときは、保存は通して注意書きだけ出す。
+      （ネットにつながらない場所で設定できなくなるのを避けるため）
+    */
+    if (isGithubReady(next)) {
+      let info = null;
+      try {
+        const check = createGithubStore({
+          owner: next.owner, repo: next.repo, branch: next.branch, token: next.token
+        });
+        info = await check.checkAccess();
+      } catch (e) {
+        setBanner('banner',
+          `${escapeHtml(next.owner)}/${escapeHtml(next.repo)} が公開かどうか確かめられませんでした` +
+          `（${escapeHtml(errorMessage(e))}）。設定は保存しましたが、` +
+          '<b>かならず private のリポジトリか確認してください。</b>', 'warn');
+      }
+      if (info && info.private === false) {
+        setBanner('banner',
+          `<b>${escapeHtml(info.name)} は公開（public）のリポジトリです。保存しませんでした。</b><br>` +
+          '利用者のお名前がだれでも見られる場所に出てしまいます。' +
+          '非公開（private）のデータ用リポジトリの名前を入れてください。', 'error');
+        toast('公開リポジトリなので保存しませんでした', 'error');
+        return;
+      }
+    }
+
+    try {
+      saveConfig(next);
+    } catch (e) {
+      setBanner('banner', escapeHtml(errorMessage(e)), 'error');
+      toast('設定を覚えさせられませんでした', 'error');
+      return;
+    }
     toast(isGithubReady(next)
       ? '設定を保存しました。GitHub に読み書きします'
       : '設定を保存しました。トークンが空なので「お試しモード」です');
@@ -135,7 +173,12 @@ export async function start() {
     });
     if (answer !== 'ok') return;
     const next = { ...loadConfig(), token: '' };
-    saveConfig(next);
+    try {
+      saveConfig(next);
+    } catch (e) {
+      setBanner('banner', escapeHtml(errorMessage(e)), 'error');
+      return;
+    }
     form.token.value = '';
     toast('トークンを消しました');
     setTimeout(() => location.reload(), 900);

@@ -299,9 +299,21 @@ test('canDrop：車椅子わくがいっぱいの車には置けない（理由�
   const dirState = plan.days['1'].out;
   dirState.vans.v1.rows[0].userId = 'u4';                 /* 車椅子1名でわくは満杯 */
   const no = A.canDrop(ctx, dirState, 'u5', 'v1', 1);
-  assert.equal(no.reason, 'ハイエースの車椅子スペースは いっぱいです');
+  assert.equal(no.reason, 'ハイエースの車椅子スペースは いっぱいです（わくは 1）');
   assert.equal(A.canDrop(ctx, dirState, 'u1', 'v1', 1), true, '歩ける方は置ける');
   assert.equal(A.canDrop(ctx, dirState, 'u4', 'v1', 1), true, 'もう乗っている本人は動かせる');
+});
+
+test('canDrop：車椅子わくが0の車は「いっぱい」ではなく、直す先を言う', () => {
+  const { ctx, plan } = makeFixture();
+  const dirState = plan.days['1'].out;
+  /* 「車を追加」の初期値は車椅子わく0。その状態を作る */
+  ctx.vansById.v1.wheelchairSeats = 0;
+  const no = A.canDrop(ctx, dirState, 'u5', 'v1', 1);
+  assert.match(no.reason, /車椅子のわくがありません/, 'わくが0なら「いっぱい」とは言わない');
+  assert.match(no.reason, /マスタ編集/, 'どこを直せばよいかまで言う');
+  assert.doesNotMatch(no.reason, /いっぱい/, '席は空いているので「いっぱい」では現場が詰まる');
+  assert.equal(A.canDrop(ctx, dirState, 'u1', 'v1', 1), true, '歩ける方はふつうに置ける');
 });
 
 /* ---------- 置く・おろす ---------- */

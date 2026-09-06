@@ -51,6 +51,58 @@ function renderSaveBar() {
   node.textContent = `● ${labels.join('・')} がまだ保存されていません`;
 }
 
+/* 保存していないタブがあるか */
+function isDirty() {
+  return Object.keys(state.dirty).some(k => state.dirty[k]);
+}
+
+/*
+  未保存のときに聞く。true なら進んでよい。
+
+  保存はタブごとなので、いま開いているタブしか保存できない。
+  ほかのタブが未保存のときは、そのタブ名を出して気づけるようにする。
+*/
+async function confirmLeave(actionLabel) {
+  if (!isDirty()) return true;
+  const labels = Object.keys(state.dirty)
+    .filter(k => state.dirty[k])
+    .map(k => (TABS.find(t => t.key === k) || {}).label)
+    .filter(Boolean);
+  const here = state.dirty[state.tab];
+  const answer = await showDialog({
+    title: 'まだ保存していません',
+    bodyHtml:
+      `<b>${escapeHtml(labels.join('・'))}</b> が保存されていません。<br>` +
+      `このまま${escapeHtml(actionLabel)}ると、入れた内容は消えます。` +
+      (here ? '' : '<br>（保存は、そのタブを開いてから押してください）'),
+    buttons: [
+      { label: 'やめる', value: 'cancel' },
+      { label: '保存しないで進む', value: 'discard' },
+      ...(here ? [{ label: 'いまのタブを保存する', value: 'save', kind: 'go' }] : [])
+    ]
+  });
+  if (answer === 'cancel') return false;
+  if (answer === 'save') {
+    await saveCurrent();
+    return !isDirty();
+  }
+  return true;
+}
+
+/*
+  ヘッダーのリンク（割り当て画面へ／設定へ）で、未保存のまま出ていくのを止める。
+  iPad の Safari は beforeunload の確認を出さないため、自分で聞く必要がある。
+*/
+function guardLinks() {
+  document.querySelectorAll('header a[href]').forEach(link => {
+    link.addEventListener('click', async e => {
+      if (!isDirty()) return;
+      e.preventDefault();
+      if (await confirmLeave('移動す')) location.href = link.href;
+    });
+  });
+}
+
 /* ---------- 曜日のチェックらん ---------- */
 function dayBoxes(item, tab) {
   const wrap = el('div', 'dayboxes');
@@ -440,11 +492,23 @@ async function saveCurrent() {
       : `（お試しモード）${tab.label}をこの端末の中だけに控えました`);
   } catch (e) {
     if (e instanceof ConflictError) {
-      await showDialog({
+      /*
+        「とじる」だけだと、古い版番号（sha）が残ったままなので、
+        何度「保存」を押しても同じエラーが出て、二度と保存できなくなる。
+        読み直す道を必ず出す。
+      */
+      const answer = await showDialog({
         title: '他の人が先に保存しました',
-        bodyHtml: '他の人が先に保存しました。画面を読み直してください。<br>読み直すと、いまの画面の直しは消えます。',
-        buttons: [{ label: 'とじる', value: 'close' }]
+        bodyHtml:
+          '他の人が先に保存しました。<br>' +
+          '<b>このままでは、もう保存できません。</b>画面を読み直してください。<br>' +
+          '読み直すと、いまの画面の直しは消えます。',
+        buttons: [
+          { label: 'あとで（このまま見る）', value: 'close' },
+          { label: '読み直す', value: 'reload', kind: 'go' }
+        ]
       });
+      if (answer === 'reload') { location.reload(); return; }
     } else {
       toast(errorMessage(e), 'error');
     }
@@ -471,12 +535,18 @@ export async function start() {
       return;
     }
     document.getElementById('facilityname').textContent = state.facility.name;
-    fillFacilitySelect(
-      document.getElementById('facilitypick'),
-      state.facilities,
-      state.facility.id,
-      () => location.reload()
-    );
+    /*
+      事業所を変えると読み込み直しになる。未保存のまま変えると、
+      入れたばかりのマスタが黙って消える。
+      iPad の Safari は beforeunload の確認を出さないので、
+      ブラウザ任せにはできない。ここで自分で聞く。
+    */
+    const pick = document.getElementById('facilitypick');
+    fillFacilitySelect(pick, state.facilities, state.facility.id, async () => {
+      if (await confirmLeave('事業所をかえ')) location.reload();
+      else pick.value = state.facility.id;
+    });
+    guardLinks();
 
     const masters = await state.repo.loadMasters(state.facility.id, { includeInactive: true });
     state.data = {

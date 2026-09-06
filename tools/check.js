@@ -9,6 +9,8 @@
    4. data/ の JSON が読める形になっているか
    5. JS がさわろうとしている id が、その画面の HTML にあるか
       （ここが食い違うと、ブラウザで開いたときだけ動かなくなる）
+   6. data/ に、本物の利用者のお名前がまぎれこんでいないか
+      （このリポジトリは公開です。ここが最後の関所になります）
    ============================================================ */
 
 import { readdirSync, readFileSync, statSync, writeFileSync, rmSync, mkdtempSync } from 'node:fs';
@@ -114,6 +116,46 @@ SCREENS.forEach(screen => {
 });
 
 rmSync(temp, { recursive: true, force: true });
+
+/* ============================================================
+   6. data/ に本物のお名前がまぎれこんでいないか
+
+   このリポジトリ（sougei-app）は公開されています。
+   本物の利用者データは、非公開の sougei-data にしか置きません。
+   うっかり公開側へコピーしてしまう事故を、ここで止めます。
+   ============================================================ */
+const allowed = new Set(JSON.parse(readFileSync(join(ROOT, 'tools/dummy-names.json'), 'utf8')).names);
+/*
+  見るのは「お名前」と「いつもの運転手」だけ。
+  バッジの1文字（initial）は名字の頭字なので、止めても意味がなく、
+  警告が増えるぶん本物の警告が埋もれる。
+*/
+const nameKeys = ['name', 'driver'];
+
+function realNameCheck(value, where) {
+  checked++;
+  const name = String(value || '').trim();
+  if (!name || allowed.has(name)) return;
+  problems.push(
+    `見なれないお名前が公開リポジトリにあります: 「${name}」（${where}）\n` +
+    '    本物の利用者・職員のお名前なら、ここから消してください。' +
+    'このリポジトリは公開されています。本物は非公開の sougei-data に入れます。\n' +
+    '    新しいダミーとして足したのなら、tools/dummy-names.json にも書き足してください。'
+  );
+}
+
+walk(join(ROOT, 'data')).filter(f => f.endsWith('.json')).forEach(file => {
+  const rel = relative(ROOT, file).replace(/\\/g, '/');
+  if (rel.endsWith('facilities.json')) return;      /* 事業所名は本物でよい */
+  let json;
+  try { json = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { return; }  /* 4 で報告ずみ */
+  ['users', 'vans', 'drivers'].forEach(key => {
+    (Array.isArray(json[key]) ? json[key] : []).forEach(item => {
+      if (!item || typeof item !== 'object') return;
+      nameKeys.forEach(k => { if (item[k]) realNameCheck(item[k], `${rel} の ${key}`); });
+    });
+  });
+});
 
 console.log(`${checked}か所を調べました。`);
 if (problems.length) {

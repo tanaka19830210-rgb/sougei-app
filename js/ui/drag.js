@@ -17,10 +17,43 @@ export function bindDrag(currentApp) {
   });
 }
 
+/*
+  指が触れてすぐ持ち上げると、タイルの上から始めた「画面のスクロール」が
+  できなくなる（タイルは touch-action:none のため）。
+  利用者が多いと、リストの下のほうの人に指で届かなくなる。
+
+  そこで、この距離だけ動いてから初めて持ち上げる。
+  それまではブラウザにスクロールさせる。
+  マウスは取りこぼしがないので、しきい値なしで持ち上げる。
+*/
+const DRAG_START_PX = 8;
+
 function onDown(e) {
   if (drag) return;
   const tile = e.currentTarget;
-  const uid = tile.dataset.uid;
+  const byFinger = e.pointerType === 'touch' || e.pointerType === 'pen';
+
+  drag = {
+    uid: tile.dataset.uid, tile, fly: null,
+    startX: e.clientX, startY: e.clientY,
+    dx: 0, dy: 0,
+    lifted: false,
+    target: null, reason: null, y: e.clientY
+  };
+
+  tile.addEventListener('pointermove', onMove);
+  tile.addEventListener('pointerup', onUp);
+  tile.addEventListener('pointercancel', onUp);
+
+  if (byFinger) return;          /* 指のときは、動きはじめるまで待つ */
+  lift(e);
+  e.preventDefault();
+}
+
+/* ここで初めてタイルを持ち上げる */
+function lift(e) {
+  if (!drag || drag.lifted) return;
+  const { tile } = drag;
   const rect = tile.getBoundingClientRect();
   const fly = tile.cloneNode(true);
   fly.classList.add('flying');
@@ -29,27 +62,38 @@ function onDown(e) {
   fly.style.width = rect.width + 'px';
   document.body.appendChild(fly);
   tile.classList.add('ghost');
-  drag = {
-    uid, tile, fly,
-    dx: e.clientX - rect.left,
-    dy: e.clientY - rect.top,
-    target: null, reason: null, y: e.clientY
-  };
-  tile.setPointerCapture(e.pointerId);
-  tile.addEventListener('pointermove', onMove);
-  tile.addEventListener('pointerup', onUp);
-  tile.addEventListener('pointercancel', onUp);
-  /* 画面のはしに寄せたときは自動でスクロール */
+
+  drag.fly = fly;
+  drag.dx = drag.startX - rect.left;
+  drag.dy = drag.startY - rect.top;
+  drag.lifted = true;
+
+  try { tile.setPointerCapture(e.pointerId); } catch (err) { /* 取れなくても続けられる */ }
+
+  /* 画面のはしに寄せたときは自動でスクロール。
+     はしの幅は、ヘッダーの実際の高さに合わせる（iPad はヘッダーが厚い） */
+  clearInterval(scroller);
   scroller = setInterval(() => {
-    if (!drag) return;
-    if (drag.y < 140) window.scrollBy(0, -14);
+    if (!drag || !drag.lifted) return;
+    const headerH = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--header-h')
+    ) || 140;
+    if (drag.y < headerH + 20) window.scrollBy(0, -14);
     else if (drag.y > window.innerHeight - 90) window.scrollBy(0, 14);
   }, 16);
-  e.preventDefault();
 }
 
 function onMove(e) {
   if (!drag) return;
+
+  /* まだ持ち上げていない（指）。少し動いたら持ち上げる */
+  if (!drag.lifted) {
+    const moved = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+    if (moved < DRAG_START_PX) return;   /* ここまではブラウザにスクロールさせる */
+    lift(e);
+    e.preventDefault();
+  }
+
   drag.y = e.clientY;
   drag.fly.style.left = (e.clientX - drag.dx) + 'px';
   drag.fly.style.top = (e.clientY - drag.dy) + 'px';
@@ -77,15 +121,18 @@ function onMove(e) {
 
 function onUp() {
   if (!drag) return;
-  const { uid, tile, fly, target, reason } = drag;
+  const { uid, tile, fly, target, reason, lifted } = drag;
   tile.removeEventListener('pointermove', onMove);
   tile.removeEventListener('pointerup', onUp);
   tile.removeEventListener('pointercancel', onUp);
-  fly.remove();
+  if (fly) fly.remove();
   tile.classList.remove('ghost');
   document.querySelectorAll('.valid').forEach(node => node.classList.remove('valid'));
   clearInterval(scroller);
   drag = null;
+
+  /* 持ち上がる前に指をはなした＝ただのタップ。なにもしない */
+  if (!lifted) return;
 
   if (!target) {
     if (reason) toast(reason, 'warn');

@@ -8,6 +8,7 @@
 import { bootstrap, loadFacilityContext, fillFacilitySelect, readParams } from './appShell.js';
 import { toast, showDialog, setBanner, renderModeBadge, errorMessage, escapeHtml } from './dom.js';
 import { bindDrag } from './drag.js';
+import { followStickyHeights } from './stickyOffsets.js';
 import * as R from './assignRender.js';
 import * as A from '../core/assign.js';
 import { normalizeNote, DIRS } from '../core/schema.js';
@@ -231,17 +232,27 @@ async function autoAssignWeek() {
   });
   render();
 
+  /*
+    summary.placed などは「曜日 × 迎え／送り」の のべ回数。
+    3人でも「10名」のように出てしまい、現場が混乱するので、
+    表に出す数は「実際の人数」（同じ人は1人と数える）にする。
+  */
+  const headcount = users => new Set((users || []).map(u => u.id)).size;
+  const placedCount = headcount(summary.placedUsers);
+  const noRuleCount = headcount(summary.skippedNoRuleUsers);
+  const blockedCount = headcount(summary.skippedBlockedUsers);
+
   const left = summary.skippedNoRule + summary.skippedBlocked;
   if (summary.placed === 0 && left === 0) {
     toast('乗せる人がいませんでした（もう埋まっているか、対象の方がいません）', 'warn');
   } else if (left === 0) {
-    toast(`${summary.placed}名を乗せました`);
+    toast(`${placedCount}名を乗せました（のべ ${summary.placed}件）`);
   } else {
     const parts = [];
-    if (summary.skippedNoRule) parts.push(`ルール未設定 ${summary.skippedNoRule}名`);
-    if (summary.skippedBlocked) parts.push(`席不足など ${summary.skippedBlocked}名`);
+    if (noRuleCount) parts.push(`いつもの車が未設定 ${noRuleCount}名`);
+    if (blockedCount) parts.push(`席や車椅子わくが足りない ${blockedCount}名`);
     toast(
-      `${summary.placed}名を乗せました。${parts.join('・')}は手でうごかしてください`,
+      `${placedCount}名を乗せました（のべ ${summary.placed}件）。${parts.join('・')}は手でうごかしてください`,
       'warn'
     );
   }
@@ -426,6 +437,9 @@ async function goPrint() {
    起動
    ============================================================ */
 export async function start() {
+  /* ヘッダーの折り返しに合わせて、はりつく位置を実測する（iPad対策） */
+  followStickyHeights();
+
   document.getElementById('guide-close').onclick = () =>
     document.getElementById('guide').classList.add('hide');
 

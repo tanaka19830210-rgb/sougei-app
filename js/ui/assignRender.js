@@ -10,14 +10,28 @@ import { capacity, vansForDay, NOTE_KINDS } from '../core/schema.js';
 import { DAYS, dateOfDay, weekShortLabel, parseDateKey } from '../core/dates.js';
 
 /* ---------- 利用者タイル ---------- */
-export function tileEl(app, user) {
+export function tileEl(app, user, { showNoRule = false } = {}) {
   const areas = app.state.facility.areas || {};
   const node = el('div', 'tile');
   node.style.setProperty('--area', areas[user.area] || '#b7bfb7');
   node.dataset.uid = user.id;
+  /*
+    「いつもの車」が未設定の人は、自動割り当てで黙ってプールに残る。
+    残った理由が画面から分からないと現場が詰まるので、印を出す。
+  */
+  const noRule = showNoRule && !usualVanOf(app.state.ctx, user, app.state.day, app.state.dir);
+  if (noRule) node.classList.add('norule');
   node.innerHTML = `<div class="nm">${escapeHtml(user.name)}</div>
-    <div class="meta">${escapeHtml(user.area)}${user.wheelchair ? ICON_WHEELCHAIR.replace('<svg', '<svg class="wc-ico"') : ''}</div>`;
+    <div class="meta">${escapeHtml(user.area)}${user.wheelchair ? ICON_WHEELCHAIR.replace('<svg', '<svg class="wc-ico"') : ''}</div>` +
+    (noRule ? '<div class="norule-tag">いつもの車が未設定</div>' : '');
   return node;
+}
+
+/* その曜日・その便の「いつもの車」。決まっていなければ null */
+function usualVanOf(ctx, user, day, dir) {
+  const entry = user && user.usualVans ? user.usualVans[String(day)] : null;
+  const vanId = entry ? entry[dir] : null;
+  return vanId && ctx.vansById && ctx.vansById[vanId] ? vanId : null;
 }
 
 /* ---------- 車のカード ---------- */
@@ -150,7 +164,8 @@ function vanMemoEl(app, van, vanState) {
 export function renderPool(app) {
   const pool = document.getElementById('pool');
   pool.innerHTML = '';
-  app.unassigned().forEach(user => pool.appendChild(tileEl(app, user)));
+  /* プールに残った人だけ、「いつもの車が未設定」の印を出す */
+  app.unassigned().forEach(user => pool.appendChild(tileEl(app, user, { showNoRule: true })));
 }
 
 export function renderStatus(app) {

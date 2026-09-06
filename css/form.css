@@ -38,8 +38,14 @@
 table.master{border-collapse:collapse;width:100%;min-width:760px;font-size:15px;}
 table.master th,table.master td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:middle;}
 table.master thead th{background:var(--green-pale);font-size:14px;white-space:nowrap;}
+/*
+  文字は 16px 以上にする。
+  iPad は 16px 未満の入力欄をタップすると画面を勝手に拡大し、
+  そのまま元に戻らない。マスタ編集はいちばん入力する画面なので、
+  ここが小さいと拡大したまま作業することになる。
+*/
 table.master input[type=text],table.master input[type=number],table.master select{
-  font-family:inherit;font-size:15px;color:var(--text);background:#fff;
+  font-family:inherit;font-size:16px;color:var(--text);background:#fff;
   border:1.5px solid #dfe3df;border-radius:8px;min-height:44px;padding:6px 8px;width:100%;
   box-sizing:border-box;
 }

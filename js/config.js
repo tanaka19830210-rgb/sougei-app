@@ -38,10 +38,27 @@ export function loadConfig(storage) {
   }
 }
 
+/*
+  設定をこの端末に覚えさせる。覚えられたかを saved で返す。
+
+  iPad はプライベートブラウズや「Cookie をブロック」の設定だと、
+  書きこみで例外を投げる。そのまま抜けると、設定画面が
+  なにも言わずに固まって見える（保存も再読み込みもされない）。
+*/
 export function saveConfig(config, storage) {
   const s = storageOf(storage);
   const next = { ...DEFAULT_CONFIG, ...(config || {}) };
-  if (s) s.setItem(KEY, JSON.stringify(next));
+  if (s) {
+    try {
+      s.setItem(KEY, JSON.stringify(next));
+    } catch (e) {
+      throw new Error(
+        'この端末に設定を覚えさせられませんでした。' +
+        'Safari の「プライベートブラウズ」を使っているか、' +
+        '設定で Cookie とサイトデータをブロックしていないか確認してください。'
+      );
+    }
+  }
   return next;
 }
 

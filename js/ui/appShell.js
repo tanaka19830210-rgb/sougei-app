@@ -48,7 +48,8 @@ export function fillFacilitySelect(select, facilities, currentId, onChange) {
   select.onchange = () => {
     const config = loadConfig();
     config.facilityId = select.value;
-    saveConfig(config);
+    /* 覚えられなくても（プライベートブラウズなど）、画面の切りかえは進める */
+    try { saveConfig(config); } catch (e) { /* 次に開いたとき既定の事業所に戻るだけ */ }
     if (onChange) onChange(select.value);
   };
 }

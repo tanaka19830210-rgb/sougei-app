@@ -2,10 +2,23 @@
    割り当て画面（プロトv3の見た目をそのまま移したもの）
    ============================================================ */
 
+/*
+  はりつく位置は、ヘッダーの実際の高さから決める。
+
+  --header-h と --toolbar-h は js/ui/stickyOffsets.js が測って入れる。
+  ここに書いてある値は、測る前の一瞬だけ使う控えの値。
+
+  固定の 68px にしていたときは、iPad でヘッダーが2行に折り返して
+  実高 132px になり、操作バー（週送り・曜日・迎え／送り）がまるごと
+  ヘッダーの裏に隠れて、曜日を変えられなくなっていた。
+*/
+:root{ --header-h:68px; --toolbar-h:128px; }
+
 /* ---------- 操作バー ---------- */
 .toolbar{
   background:#fff;border-bottom:1px solid var(--line);padding:10px 16px;
-  display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:68px;z-index:99;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  position:sticky;top:var(--header-h);z-index:99;
 }
 .weeknav{display:flex;align-items:center;gap:6px;}
 .weeknav button{
@@ -51,7 +64,8 @@
 /* ---------- レイアウト ---------- */
 .stage{display:flex;gap:14px;padding:14px;align-items:flex-start;}
 .pool-wrap{width:300px;flex:none;background:#fff;border-radius:14px;
-  border:1px solid var(--line);padding:13px;position:sticky;top:196px;}
+  border:1px solid var(--line);padding:13px;
+  position:sticky;top:calc(var(--header-h) + var(--toolbar-h));}
 .pool-wrap h2{font-size:16px;margin:0 0 3px;font-weight:700;display:flex;align-items:center;gap:7px;}
 .pool-wrap h2 svg{width:19px;height:19px;fill:var(--green);}
 .pool-wrap .note{font-size:13px;color:var(--sub);margin:0 0 10px;line-height:1.55;}
@@ -111,8 +125,9 @@
 .vanmemo label{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--sub);
   font-weight:500;margin-bottom:5px;}
 .vanmemo svg{width:14px;height:14px;fill:var(--sub);}
+/* 16px 未満だと、タップしたとき iPad が勝手に拡大して戻らない */
 .vanmemo textarea{
-  font-family:inherit;font-size:15px;color:var(--text);width:100%;
+  font-family:inherit;font-size:16px;color:var(--text);width:100%;
   border:1.5px solid #dfe3df;border-radius:9px;background:#fff;
   padding:9px 10px;min-height:56px;resize:vertical;line-height:1.5;
 }
@@ -125,9 +140,30 @@
   border:1.5px solid #e3e6e3;border-left:8px solid var(--area);
   box-shadow:0 1px 2px rgba(0,0,0,.06);padding:5px 7px 5px 8px;
   display:flex;flex-direction:column;justify-content:center;gap:1px;
-  touch-action:none;cursor:grab;user-select:none;
+  /*
+    -webkit- 付きも書く。Safari が接頭辞なしの user-select に対応したのは 17 から。
+    それ以前の iPad では、タイルを指で押さえた瞬間に文字選択やルーペが出て
+    ドラッグが取られてしまう。touch-callout は長押しメニュー避け。
+  */
+  touch-action:none;cursor:grab;
+  user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
 }
+/*
+  「まだ乗っていない人」のタイルだけ、縦のスワイプはブラウザに渡す。
+  ここは touch-action:none だと、タイルがびっしり並んでいるせいで
+  指でリストをスクロールできず、下のほうの人に届かなくなる。
+  車へ移すのは横向きの動きなので、pan-y でも取りこぼさない。
+  座席のタイル（.slot の中）は、車の中の並べかえが縦なので none のまま。
+*/
+.pool .tile{touch-action:pan-y;}
 .tile .nm{font-weight:700;font-size:15px;line-height:1.2;}
+
+/* 「いつもの車」が決まっていない人の印（プールにだけ出る） */
+.tile.norule{border-color:var(--orange);background:#fffdf7;}
+.tile .norule-tag{
+  font-size:11px;font-weight:700;color:#8a5b00;background:var(--orange-pale);
+  border-radius:5px;padding:1px 5px;align-self:flex-start;margin-top:2px;
+}
 .slot.filled .tile .nm{font-size:17px;}
 .tile .meta{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--sub);}
 .tile .wc-ico{width:13px;height:13px;fill:var(--area);margin-left:auto;}

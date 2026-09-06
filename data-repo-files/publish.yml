@@ -62,6 +62,8 @@ jobs:
       - name: 送迎表を画像にして LINE WORKS へ送る
         working-directory: app/tools/publish
         env:
+          # 紙面の「◯時◯分 作成」を日本時間にする（GitHub は世界標準時で動くため）
+          TZ: Asia/Tokyo
           DATA_DIR: ${{ github.workspace }}
           LW_CLIENT_ID: ${{ secrets.LW_CLIENT_ID }}
           LW_CLIENT_SECRET: ${{ secrets.LW_CLIENT_SECRET }}
@@ -71,13 +73,17 @@ jobs:
           LW_CHANNEL_ID: ${{ secrets.LW_CHANNEL_ID }}
         run: node run.js
 
-      - name: 送った画像を残しておく（うまくいかないとき確認するため）
-        if: always()
+      # 画像には利用者のお名前が全部写ります。
+      # うまくいったときまで残すと、このリポジトリを見られる人は
+      # データを触らずに送迎表を丸ごと持ち出せてしまいます。
+      # 失敗したときだけ、1日だけ残します。
+      - name: 送れなかったときだけ画像を残す（原因を確かめるため）
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: soutai-png
+          name: sougei-png-failed
           path: app/tools/publish/out/*.png
-          retention-days: 7
+          retention-days: 1
           if-no-files-found: ignore
 
       - name: 処理した依頼を片づける（同じ依頼で何度も動かないように）

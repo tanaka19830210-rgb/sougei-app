@@ -107,7 +107,15 @@ export function canDrop(ctx, dirState, userId, vanId, day) {
   const from = findRow(ctx, dirState, userId, day);
   if (from && from.vanId === vanId) return true;
   if (user.wheelchair && wheelchairCount(ctx, dirState, vanId) >= van.wheelchairSeats) {
-    return { reason: `${van.name}の車椅子スペースは いっぱいです` };
+    /*
+      「わくが0」と「わくはあるが埋まっている」は、直しかたが違う。
+      0 のときに「いっぱいです」と言うと、座席は空いて見えるので現場が詰まる。
+      直す先（車両マスタ）まで言う。
+    */
+    if (!van.wheelchairSeats) {
+      return { reason: `${van.name}には車椅子のわくがありません。マスタ編集の「車」で「車椅子わく」を1以上にしてください` };
+    }
+    return { reason: `${van.name}の車椅子スペースは いっぱいです（わくは ${van.wheelchairSeats}）` };
   }
   return true;
 }
