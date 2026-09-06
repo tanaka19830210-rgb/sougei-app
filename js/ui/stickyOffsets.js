@@ -44,6 +44,23 @@ export function followStickyHeights({
   }
   window.addEventListener('resize', apply);
   window.addEventListener('orientationchange', apply);
+
+  /*
+    スクロールのたびにも測りなおす。
+
+    はりつく位置がずれていて困るのは、スクロールしたときだけ。
+    resize も ResizeObserver も来ない環境があっても、
+    ここで必ず正しい値に戻る。
+    高さが変わっていなければ何も書かないので、負担にはならない。
+  */
+  let waiting = false;
+  function onScroll() {
+    if (waiting) return;
+    waiting = true;
+    requestAnimationFrame(() => { waiting = false; apply(); });
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+
   /* Webフォントが遅れて届くと高さが変わるので、少しあとにもう一度 */
   setTimeout(apply, 400);
   setTimeout(apply, 1500);
@@ -52,5 +69,6 @@ export function followStickyHeights({
     if (observer) observer.disconnect();
     window.removeEventListener('resize', apply);
     window.removeEventListener('orientationchange', apply);
+    window.removeEventListener('scroll', onScroll);
   };
 }
