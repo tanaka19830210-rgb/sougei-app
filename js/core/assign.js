@@ -99,23 +99,53 @@ export function ngPartnerIn(ctx, dirState, vanId, userId) {
   return null;
 }
 
-/* その車に置けるか。置けないときは理由（日本語）を返す */
-export function canDrop(ctx, dirState, userId, vanId, day) {
+/*
+  その車に置けるか。置けないときは理由（日本語）を返す。
+
+  index（席の番号）を渡すと、その席にいる人との「取りかえっこ」まで見る。
+  - 車椅子どうしの取りかえは、相手が出ていくので わくが空く
+  - 押し出された人が車椅子なら、もといた車に わくがあるかも見る。
+    見ないと、車椅子の方が わくの無い車へ黙って移り、当日乗れない事故になる
+*/
+export function canDrop(ctx, dirState, userId, vanId, day, index) {
   const van = ctx.vansById[vanId];
   const user = ctx.usersById[userId];
   if (!van || !user) return { reason: 'この車には置けません' };
   const from = findRow(ctx, dirState, userId, day);
   if (from && from.vanId === vanId) return true;
-  if (user.wheelchair && wheelchairCount(ctx, dirState, vanId) >= van.wheelchairSeats) {
-    /*
-      「わくが0」と「わくはあるが埋まっている」は、直しかたが違う。
-      0 のときに「いっぱいです」と言うと、座席は空いて見えるので現場が詰まる。
-      直す先（車両マスタ）まで言う。
-    */
-    if (!van.wheelchairSeats) {
-      return { reason: `${van.name}には車椅子のわくがありません。マスタ編集の「車」で「車椅子わく」を1以上にしてください` };
+
+  const target = dirState && dirState.vans ? dirState.vans[vanId] : null;
+  const targetRow = target && Number.isInteger(index) ? target.rows[index] : null;
+  const displaced = targetRow && targetRow.userId ? ctx.usersById[targetRow.userId] : null;
+  const displacedWc = !!(displaced && displaced.wheelchair);
+
+  if (user.wheelchair) {
+    const used = wheelchairCount(ctx, dirState, vanId) - (displacedWc ? 1 : 0);
+    if (used >= van.wheelchairSeats) {
+      /*
+        「わくが0」と「わくはあるが埋まっている」は、直しかたが違う。
+        0 のときに「いっぱいです」と言うと、座席は空いて見えるので現場が詰まる。
+        直す先（車両マスタ）まで言う。
+      */
+      if (!van.wheelchairSeats) {
+        return { reason: `${van.name}には車椅子のわくがありません。マスタ編集の「車」で「車椅子わく」を1以上にしてください` };
+      }
+      return { reason: `${van.name}の車椅子スペースは いっぱいです（わくは ${van.wheelchairSeats}）` };
     }
-    return { reason: `${van.name}の車椅子スペースは いっぱいです（わくは ${van.wheelchairSeats}）` };
+  }
+
+  /* 押し出された人は、動かした人のもとの席に入る。そこが車椅子で乗れる席か */
+  if (displacedWc && from) {
+    const fromVan = ctx.vansById[from.vanId];
+    const seats = fromVan ? fromVan.wheelchairSeats : 0;
+    const used = wheelchairCount(ctx, dirState, from.vanId) - (user.wheelchair ? 1 : 0);
+    if (used >= seats) {
+      const fromName = fromVan ? fromVan.name : 'もとの車';
+      return {
+        reason: `取りかえると ${displaced.name}さん（車椅子）が ${fromName} に移りますが、` +
+          `${fromName} には車椅子のわくが足りません`
+      };
+    }
   }
   return true;
 }

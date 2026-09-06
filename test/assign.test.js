@@ -399,3 +399,37 @@ test('driverOf：その日の指定 → 空文字は未定 → 指定なしは�
   dirState.vans.v1.driver = '';
   assert.equal(A.driverOf(ctx, dirState, 'v1'), '');
 });
+
+/* ---------- 席の取りかえっこと車椅子わく ---------- */
+test('canDrop：車椅子どうしの取りかえは、相手が出ていくので置ける', () => {
+  const { ctx, plan } = makeFixture();
+  const dirState = plan.days['1'].out;
+  A.place(ctx, dirState, { userId: 'u4', vanId: 'v1', index: 0, dir: 'out', day: 1 });  /* 車椅子・わく1で満杯 */
+  A.place(ctx, dirState, { userId: 'u5', vanId: 'v2', index: 0, dir: 'out', day: 1 });  /* 車椅子 */
+  assert.equal(A.canDrop(ctx, dirState, 'u5', 'v1', 1, 0), true, '四郎さんの席と取りかえるなら置ける');
+  assert.notEqual(A.canDrop(ctx, dirState, 'u5', 'v1', 1, 1), true, '空席に足すと わくが足りない');
+});
+
+test('canDrop：押し出される車椅子の方が、わくの無い車へ移るなら止める', () => {
+  const { ctx, plan } = makeFixture({
+    vans: [
+      { id: 'v1', name: 'ハイエース', seats: 3, wheelchairSeats: 1, driver: '山田', days: [1, 2, 3, 4, 5, 6] },
+      { id: 'v2', name: 'タント', seats: 2, wheelchairSeats: 0, driver: '佐々木', days: [1, 2, 3, 4, 5] }
+    ]
+  });
+  const dirState = plan.days['1'].out;
+  A.place(ctx, dirState, { userId: 'u4', vanId: 'v1', index: 0, dir: 'out', day: 1 });  /* 車椅子の四郎さん */
+  A.place(ctx, dirState, { userId: 'u1', vanId: 'v2', index: 0, dir: 'out', day: 1 });  /* 歩ける一郎さん、わく0の車 */
+  const no = A.canDrop(ctx, dirState, 'u1', 'v1', 1, 0);
+  assert.match(no.reason, /四郎さん（車椅子）/, '誰が移ることになるかを言う');
+  assert.match(no.reason, /タント/, 'どの車に わくが無いかを言う');
+  assert.equal(A.canDrop(ctx, dirState, 'u1', 'v1', 1, 1), true, '空席へなら、四郎さんは動かないので置ける');
+  assert.equal(A.canDrop(ctx, dirState, 'u1', 'v1', 1), true, '席の番号が無い（プールからの判定）ときは、これまでどおり');
+});
+
+test('canDrop：プールから人がいる席へ落とすときは、相手はプールにもどるだけなので止めない', () => {
+  const { ctx, plan } = makeFixture();
+  const dirState = plan.days['1'].out;
+  A.place(ctx, dirState, { userId: 'u4', vanId: 'v1', index: 0, dir: 'out', day: 1 });
+  assert.equal(A.canDrop(ctx, dirState, 'u1', 'v1', 1, 0), true);
+});
