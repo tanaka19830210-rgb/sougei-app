@@ -88,8 +88,10 @@
 .van-sub{font-size:13px;color:var(--sub);margin:4px 0 11px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
 .van-sub span{display:inline-flex;align-items:center;gap:5px;}
 .van-sub svg{width:15px;height:15px;fill:var(--sub);}
-/* その日の運転手（えらぶと紙の運転手バッジに出る） */
-.drvpick{font-family:inherit;font-size:14px;color:var(--text);background:#fff;
+/* その日の運転手（えらぶと紙の運転手バッジに出る）
+   16px 未満だと、iPad はえらぶときに画面を拡大して戻らない。
+   拡大したままだと、指でひっぱるタイルが指からずれる */
+.drvpick{font-family:inherit;font-size:16px;color:var(--text);background:#fff;
   border:1.5px solid #dfe3df;border-radius:9px;min-height:44px;padding:6px 8px;}
 .drvpick:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-pale);}
 

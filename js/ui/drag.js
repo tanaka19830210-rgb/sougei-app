@@ -9,12 +9,30 @@ import * as A from '../core/assign.js';
 let app = null;
 let drag = null;
 let scroller = null;
+let windowBound = false;
 
 export function bindDrag(currentApp) {
   app = currentApp;
   document.querySelectorAll('.tile').forEach(tile => {
     tile.addEventListener('pointerdown', onDown);
   });
+
+  /*
+    指をはなした合図（pointerup / pointercancel）がタイルに届かないことがある。
+    通知をさわった・ほかのアプリに切りかえた・2本目の指が触れた、など。
+    そのまま drag が残ると、以後どのタイルを押しても何も起きなくなる
+    （onDown の先頭で「ひっぱり中なら無視」しているため）。
+    window でも受けて、必ず片づける。
+  */
+  if (!windowBound) {
+    windowBound = true;
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    window.addEventListener('blur', onUp);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') onUp();
+    });
+  }
 }
 
 /*
@@ -29,16 +47,20 @@ export function bindDrag(currentApp) {
 const DRAG_START_PX = 8;
 
 function onDown(e) {
+  /* 前のひっぱりが片づいていない（タイルが画面から消えている）なら捨てる */
+  if (drag && !drag.tile.isConnected) onUp();
   if (drag) return;
   const tile = e.currentTarget;
   const byFinger = e.pointerType === 'touch' || e.pointerType === 'pen';
 
   drag = {
     uid: tile.dataset.uid, tile, fly: null,
+    pointerId: e.pointerId,
     startX: e.clientX, startY: e.clientY,
     dx: 0, dy: 0,
     lifted: false,
-    target: null, reason: null, y: e.clientY
+    target: null, reason: null,
+    x: e.clientX, y: e.clientY
   };
 
   tile.addEventListener('pointermove', onMove);
@@ -78,8 +100,15 @@ function lift(e) {
     const headerH = parseFloat(
       getComputedStyle(document.documentElement).getPropertyValue('--header-h')
     ) || 140;
-    if (drag.y < headerH + 20) window.scrollBy(0, -14);
-    else if (drag.y > window.innerHeight - 90) window.scrollBy(0, 14);
+    let moved = false;
+    if (drag.y < headerH + 20) { window.scrollBy(0, -14); moved = true; }
+    else if (drag.y > window.innerHeight - 90) { window.scrollBy(0, 14); moved = true; }
+    /*
+      指を止めたままスクロールしているあいだは pointermove が来ない。
+      置き先の緑わくを更新しないと、指をはなしたとき「さっき光っていた席」に
+      入ってしまうので、スクロールのたびに指の下を見なおす。
+    */
+    if (moved) updateTarget(drag.x, drag.y);
   }, 16);
 }
 
@@ -94,19 +123,29 @@ function onMove(e) {
     e.preventDefault();
   }
 
+  drag.x = e.clientX;
   drag.y = e.clientY;
   drag.fly.style.left = (e.clientX - drag.dx) + 'px';
   drag.fly.style.top = (e.clientY - drag.dy) + 'px';
+  updateTarget(e.clientX, e.clientY);
+}
+
+/* 指の下にある席（またはプール）を調べて、置けるなら緑にする */
+function updateTarget(x, y) {
+  if (!drag || !drag.lifted) return;
   document.querySelectorAll('.valid').forEach(node => node.classList.remove('valid'));
   drag.target = null;
   drag.reason = null;
 
-  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const under = document.elementFromPoint(x, y);
   if (!under) return;
   const slot = under.closest('.slot');
   const pool = under.closest('.pool');
   if (slot) {
-    const ok = A.canDrop(app.state.ctx, app.dirState(), drag.uid, slot.dataset.van, app.state.day);
+    const ok = A.canDrop(
+      app.state.ctx, app.dirState(), drag.uid, slot.dataset.van, app.state.day,
+      Number(slot.dataset.idx)
+    );
     if (ok === true) {
       slot.classList.add('valid');
       drag.target = { type: 'slot', el: slot };
@@ -119,8 +158,11 @@ function onMove(e) {
   }
 }
 
-function onUp() {
+function onUp(e) {
   if (!drag) return;
+  /* 2本目の指の pointerup で、1本目のひっぱりを終わらせない */
+  if (e && e.pointerId !== undefined && e.pointerId !== drag.pointerId && e.type !== 'blur') return;
+
   const { uid, tile, fly, target, reason, lifted } = drag;
   tile.removeEventListener('pointermove', onMove);
   tile.removeEventListener('pointerup', onUp);
@@ -133,6 +175,12 @@ function onUp() {
 
   /* 持ち上がる前に指をはなした＝ただのタップ。なにもしない */
   if (!lifted) return;
+
+  /* 途中で途切れた（アプリ切替など）ときは、置かずにもどす */
+  if (!e || e.type === 'pointercancel' || e.type === 'blur' || e.type === 'visibilitychange') {
+    if (e && e.type === 'pointercancel' && reason) toast(reason, 'warn');
+    return;
+  }
 
   if (!target) {
     if (reason) toast(reason, 'warn');

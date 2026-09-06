@@ -119,7 +119,10 @@ function rowEl(app, van, vanState, row, index) {
     const time = el('input', 'time');
     time.type = 'time';
     time.value = row.time || '';
-    time.oninput = e => { row.time = e.target.value; app.markDirty(); };
+    /* iPad の時刻えらびは input が来ないことがあるので、change も拾う */
+    const onTime = e => { row.time = e.target.value; app.markDirty(); };
+    time.oninput = onTime;
+    time.onchange = onTime;
     node.appendChild(time);
   }
 
