@@ -54,6 +54,15 @@ export function weekKeyOf(date) {
   return dateKey(mondayOf(date));
 }
 
+/*
+  画面をひらいたときに出す週。
+  日曜日は mondayOf だと「もう終わった先週」になり、週ラベルしか出ないので
+  気づかずに先週の表を配信してしまう。日曜にひらくのは翌週の準備なので、次の週を出す。
+*/
+export function currentWeekKey(now = new Date()) {
+  return weekKeyOf(now.getDay() === 0 ? addDays(now, 1) : now);
+}
+
 /* 週キーから曜日番号の日付を出す */
 export function dateOfDay(weekStartKey, dayNumber) {
   const start = parseDateKey(weekStartKey);

@@ -9,7 +9,7 @@
 import { bootstrap, loadFacilityContext, pickFacility, readParams } from './appShell.js';
 import { escapeHtml, setBanner, errorMessage } from './dom.js';
 import { buildPageHtml } from '../core/printLayout.js';
-import { weekLongLabel, weekKeyOf, parseDateKey } from '../core/dates.js';
+import { weekLongLabel, weekKeyOf, currentWeekKey, parseDateKey } from '../core/dates.js';
 
 export { buildPageHtml };
 
@@ -25,7 +25,7 @@ export async function start() {
       return;
     }
     const asked = parseDateKey(params.weekStart);
-    const weekStart = asked ? weekKeyOf(asked) : weekKeyOf(new Date());
+    const weekStart = asked ? weekKeyOf(asked) : currentWeekKey();
 
     const masters = await loadFacilityContext(boot.repo, facility);
     const { plan, exists } = await boot.repo.loadPlan({

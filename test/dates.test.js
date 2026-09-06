@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   mondayOf, addDays, dateKey, parseDateKey, weekKeyOf, dateOfDay,
-  shiftWeekKey, weekShortLabel, weekLongLabel, fullDateLabel, dayLabel, clockLabel
+  shiftWeekKey, weekShortLabel, weekLongLabel, fullDateLabel, dayLabel, clockLabel, currentWeekKey
 } from '../js/core/dates.js';
 
 test('mondayOf：月曜はその日、火〜土はその週の月曜', () => {
@@ -53,4 +53,11 @@ test('ラベル：画面用と紙用', () => {
 
 test('clockLabel：2けたの時刻', () => {
   assert.equal(clockLabel(new Date(2026, 7, 3, 9, 5)), '09:05');
+});
+
+test('currentWeekKey：月〜土はその週、日曜は次の週をひらく', () => {
+  assert.equal(currentWeekKey(new Date(2026, 8, 7)), '2026-09-07');  /* 月 */
+  assert.equal(currentWeekKey(new Date(2026, 8, 12)), '2026-09-07'); /* 土 */
+  assert.equal(currentWeekKey(new Date(2026, 8, 6)), '2026-09-07');  /* 日は次の週 */
+  assert.equal(weekKeyOf(new Date(2026, 8, 6)), '2026-08-31', 'weekKeyOf のほうは変えない（ファイル名の決まり）');
 });
