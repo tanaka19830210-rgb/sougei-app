@@ -53,11 +53,16 @@ export function followStickyHeights({
     ここで必ず正しい値に戻る。
     高さが変わっていなければ何も書かないので、負担にはならない。
   */
-  let waiting = false;
+  let timer = null;
   function onScroll() {
-    if (waiting) return;
-    waiting = true;
-    requestAnimationFrame(() => { waiting = false; apply(); });
+    if (timer) return;
+    /*
+      requestAnimationFrame では間引かない。
+      ほかのアプリに切りかえると rAF は止まるので、
+      待ちの印が立ったまま戻らず、以後ずっと測りなおされなくなる。
+      setTimeout なら、裏に回っても必ず戻ってくる。
+    */
+    timer = setTimeout(() => { timer = null; apply(); }, 100);
   }
   window.addEventListener('scroll', onScroll, { passive: true });
 
@@ -67,6 +72,7 @@ export function followStickyHeights({
 
   return function stop() {
     if (observer) observer.disconnect();
+    if (timer) { clearTimeout(timer); timer = null; }
     window.removeEventListener('resize', apply);
     window.removeEventListener('orientationchange', apply);
     window.removeEventListener('scroll', onScroll);
