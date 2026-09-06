@@ -218,7 +218,13 @@ export function emptyDirState(vans, day) {
 }
 
 export function emptyDayState(vans, day) {
-  return { out: emptyDirState(vans, day), ret: emptyDirState(vans, day), notes: [] };
+  return { out: emptyDirState(vans, day), ret: emptyDirState(vans, day), notes: [], absent: [] };
+}
+
+/* その日は休みの方の id の一覧。文字だけ・重なりなし */
+export function normalizeAbsent(raw) {
+  if (!Array.isArray(raw)) return [];
+  return [...new Set(raw.map(x => str(x)).filter(Boolean))];
 }
 
 export function createEmptyPlan({ facilityId, weekStart, vans, days } = {}) {
@@ -276,6 +282,7 @@ export function normalizePlan(raw, { facilityId, weekStart, vans, days } = {}) {
     const day = { ...srcDay };
     DIRS.forEach(d => { day[d.key] = normalizeDirState(srcDay[d.key], vanList, n); });
     day.notes = normalizeNotes(srcDay.notes);
+    day.absent = normalizeAbsent(srcDay.absent);
     plan.days[String(n)] = day;
   });
 

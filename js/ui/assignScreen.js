@@ -12,7 +12,7 @@ import { followStickyHeights } from './stickyOffsets.js';
 import * as R from './assignRender.js';
 import * as A from '../core/assign.js';
 import { normalizeNote, DIRS } from '../core/schema.js';
-import { weekKeyOf, shiftWeekKey, parseDateKey, clockLabel, fullDateLabel, dayLabel, weekShortLabel } from '../core/dates.js';
+import { weekKeyOf, currentWeekKey, shiftWeekKey, parseDateKey, clockLabel, fullDateLabel, dayLabel, weekShortLabel } from '../core/dates.js';
 import { ConflictError } from '../store/errors.js';
 
 const state = {
@@ -34,7 +34,7 @@ const app = {
     return app.dayState()[state.dir];
   },
   unassigned() {
-    return A.unassignedUsers(state.ctx, app.dirState(), state.day, state.dir);
+    return A.unassignedUsers(state.ctx, app.dirState(), state.day, state.dir, app.dayState().absent);
   },
 
   /* ---------- 1手戻すための控え ---------- */
@@ -48,12 +48,30 @@ const app = {
   place(userId, vanId, index) {
     app.snapshot();
     A.place(state.ctx, app.dirState(), { userId, vanId, index, dir: state.dir, day: state.day });
+    app.touchReturn();
     app.render();
   },
   toPool(userId) {
     app.snapshot();
     A.removeToPool(state.ctx, app.dirState(), { userId, dir: state.dir, day: state.day });
+    app.touchReturn();
     app.render();
+  },
+  /* 送りを手でさわった印。送りを空にした日に、迎えのコピーが勝手に復活しないようにする */
+  touchReturn() {
+    if (state.dir === 'ret') app.dirState().touched = true;
+  },
+
+  /* ---------- この日は休み ---------- */
+  setAbsent(userId, absent) {
+    pushWeekUndo();
+    A.setAbsent(state.ctx, app.dayState(), { userId, day: state.day, absent });
+    app.render();
+    const user = state.ctx.usersById[userId];
+    const name = user ? user.name : '';
+    toast(absent
+      ? `${name}さんを この日は休みにしました。「1手戻す」でもどせます`
+      : `${name}さんの休みをとりけしました`);
   },
 
   setDay(day) {
@@ -74,6 +92,7 @@ const app = {
 function render() {
   R.renderVans(app);
   R.renderPool(app);
+  R.renderAbsent(app);
   R.renderStatus(app);
   R.renderDayNotes(app);
   markDirty();
@@ -315,8 +334,10 @@ function setDir(next) {
     const dayState = app.dayState();
     const retEmpty = A.placedIds(state.ctx, dayState.ret, state.day).length === 0;
     const outHas = A.placedIds(state.ctx, dayState.out, state.day).length > 0;
-    if (retEmpty && outHas) {
+    /* 一度さわった送り（touched）は、空でもコピーしなおさない */
+    if (retEmpty && outHas && !dayState.ret.touched) {
       dayState.ret = A.copyOutToReturn(state.ctx, { day: state.day, outState: dayState.out });
+      dayState.ret.touched = true;
       toast('送りは迎えのコピーから始めます。ちがう人だけ直してください');
     }
   }
@@ -358,7 +379,7 @@ function unfinishedSlots() {
     const dayState = state.plan.days[String(n)];
     if (!dayState) return;
     DIRS.forEach(d => {
-      const left = A.unassignedUsers(state.ctx, dayState[d.key], n, d.key);
+      const left = A.unassignedUsers(state.ctx, dayState[d.key], n, d.key, dayState.absent);
       if (left.length) list.push({ day: n, dirLabel: d.label, count: left.length });
     });
   });
@@ -493,7 +514,7 @@ export async function start() {
 
     const params = readParams();
     const asked = parseDateKey(params.weekStart);
-    const week = asked ? weekKeyOf(asked) : weekKeyOf(new Date());
+    const week = asked ? weekKeyOf(asked) : currentWeekKey();
     state.day = firstDay();
     await loadWeek(week);
 

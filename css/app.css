@@ -172,6 +172,26 @@
 .tile.ghost{opacity:.28;}
 .tile.flying{position:fixed;z-index:999;pointer-events:none;margin:0;
   box-shadow:0 12px 26px rgba(0,0,0,.28);transform:scale(1.06) rotate(-1.5deg);}
+/* マスタから消えた方（「使う」を外した方）が席に残っているとき。プールへひっぱれば降ろせる */
+.tile.missing{border-color:#cfd6cf;border-left-color:#cfd6cf;background:#f7f8f7;color:var(--sub);}
+
+/* ---------- この日は休み ---------- */
+/* プールのタイルの右はしに「休み」ボタン。ひっぱりの邪魔をしないよう、押した合図はタイルへ伝えない */
+.tile{position:relative;}
+.tile.has-abs{padding-right:56px;}
+.abs-btn{
+  position:absolute;right:5px;top:50%;transform:translateY(-50%);
+  font-family:inherit;font-size:13px;font-weight:700;color:var(--sub);background:#f1f3f1;
+  border:1.5px solid #dfe3df;border-radius:8px;min-width:46px;min-height:40px;cursor:pointer;
+  touch-action:auto;
+}
+.abs-btn:active{background:#e3e6e3;}
+.absent{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px;}
+.absent.hide{display:none;}
+.absent-head{font-size:13px;font-weight:700;color:var(--sub);margin-bottom:6px;}
+.absent .item{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.absent .item .name{flex:1;font-size:15px;font-weight:700;color:#8d968d;text-decoration:line-through;}
+.absent .item .btn{min-height:40px;padding:6px 12px;font-size:14px;}
 
 /* ---------- この日のメモ（紙のいちばん下に出る欄） ---------- */
 .daynotes{margin:0 14px 24px;background:#fff;border-radius:14px;border:1px solid var(--line);padding:13px 15px 16px;}

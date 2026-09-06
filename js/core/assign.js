@@ -61,9 +61,38 @@ export function placedIds(ctx, dirState, day) {
   return ids;
 }
 
-export function unassignedUsers(ctx, dirState, day, dir) {
+/* absent（その日は休みの方の id）を渡すと、その方は「まだ乗っていない人」に出ない */
+export function unassignedUsers(ctx, dirState, day, dir, absent) {
   const placed = new Set(placedIds(ctx, dirState, day));
-  return targetUsers(ctx, day, dir).filter(u => !placed.has(u.id));
+  const off = new Set(Array.isArray(absent) ? absent : []);
+  return targetUsers(ctx, day, dir).filter(u => !placed.has(u.id) && !off.has(u.id));
+}
+
+/* その日「休み」にした方（マスタにいて、その曜日に来る予定だった方だけ） */
+export function absentUsers(ctx, dayState, day) {
+  const off = new Set(dayState && Array.isArray(dayState.absent) ? dayState.absent : []);
+  return ctx.users.filter(u => off.has(u.id) && u.days.includes(Number(day)));
+}
+
+/*
+  その日を休みにする／休みをとりけす。
+  休みにするときは、迎え・送りの席から降ろす（時刻もふりなおす）。
+  dayState をその場で書きかえる。
+*/
+export function setAbsent(ctx, dayState, { userId, day, absent }) {
+  if (!dayState) return dayState;
+  const list = Array.isArray(dayState.absent) ? dayState.absent : [];
+  if (absent) {
+    ['out', 'ret'].forEach(dir => {
+      if (dayState[dir]) removeToPool(ctx, dayState[dir], { userId, dir, day });
+    });
+    if (!list.includes(userId)) list.push(userId);
+  } else {
+    const i = list.indexOf(userId);
+    if (i >= 0) list.splice(i, 1);
+  }
+  dayState.absent = list;
+  return dayState;
 }
 
 export function wheelchairCount(ctx, dirState, vanId) {
@@ -89,9 +118,12 @@ export function findRow(ctx, dirState, userId, day) {
   return null;
 }
 
-/* いっしょに乗れない相手が、その車にすでに乗っているか */
-export function ngPartnerIn(ctx, dirState, vanId, userId) {
-  const riders = ridersIn(dirState, vanId).filter(id => id !== userId);
+/*
+  いっしょに乗れない相手が、その車にすでに乗っているか。
+  excludeId は、席の取りかえっこで出ていく人。その人は相手として数えない。
+*/
+export function ngPartnerIn(ctx, dirState, vanId, userId, excludeId) {
+  const riders = ridersIn(dirState, vanId).filter(id => id !== userId && id !== excludeId);
   for (const p of ctx.ngPairs) {
     if (p.a === userId && riders.includes(p.b)) return p.b;
     if (p.b === userId && riders.includes(p.a)) return p.a;
@@ -235,7 +267,7 @@ function putInEmptySeat(dirState, vanId, userId) {
   - 定員・車椅子わく・同乗NGを守れないときはスキップ
   dirState をその場で書きかえる。
 */
-export function autoAssignDir(ctx, { day, dir, dirState }) {
+export function autoAssignDir(ctx, { day, dir, dirState, absent }) {
   const placed = [];
   const skippedNoRule = [];
   const skippedBlocked = [];
@@ -244,7 +276,7 @@ export function autoAssignDir(ctx, { day, dir, dirState }) {
   }
 
   const dayVanIds = new Set(vansForDay(ctx.vans, day).map(v => v.id));
-  const candidates = unassignedUsers(ctx, dirState, day, dir).map(user => ({
+  const candidates = unassignedUsers(ctx, dirState, day, dir, absent).map(user => ({
     user,
     vanId: usualVanId(user, day, dir)
   }));
@@ -312,7 +344,7 @@ export function autoAssignWeek(ctx, { plan, days } = {}) {
     if (!dayState) return;
     ['out', 'ret'].forEach(dir => {
       if (!dayState[dir]) return;
-      const result = autoAssignDir(ctx, { day, dir, dirState: dayState[dir] });
+      const result = autoAssignDir(ctx, { day, dir, dirState: dayState[dir], absent: dayState.absent });
       summary.placed += result.placed.length;
       summary.skippedNoRule += result.skippedNoRule.length;
       summary.skippedBlocked += result.skippedBlocked.length;
@@ -343,6 +375,8 @@ export function clearWeekAssignments(ctx, { plan, days } = {}) {
     ['out', 'ret'].forEach(dir => {
       const dirState = dayState[dir];
       if (!dirState || !dirState.vans) return;
+      /* 降ろしたあとは、送りをまた迎えのコピーから始められるようにする */
+      delete dirState.touched;
       vansForDay(ctx.vans, day).forEach(v => {
         const van = dirState.vans[v.id];
         if (!van || !Array.isArray(van.rows)) return;

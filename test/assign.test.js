@@ -433,3 +433,56 @@ test('canDrop：プールから人がいる席へ落とすときは、相手は�
   A.place(ctx, dirState, { userId: 'u4', vanId: 'v1', index: 0, dir: 'out', day: 1 });
   assert.equal(A.canDrop(ctx, dirState, 'u1', 'v1', 1, 0), true);
 });
+
+/* ---------- この日は休み ---------- */
+test('setAbsent：休みにすると迎え・送りの席から降り、まだ乗っていない人にも出ない', () => {
+  const { ctx, plan } = makeFixture();
+  const dayState = plan.days['1'];
+  A.place(ctx, dayState.out, { userId: 'u1', vanId: 'v1', index: 0, dir: 'out', day: 1 });
+  A.place(ctx, dayState.out, { userId: 'u2', vanId: 'v1', index: 1, dir: 'out', day: 1 });
+  A.place(ctx, dayState.ret, { userId: 'u1', vanId: 'v1', index: 0, dir: 'ret', day: 1 });
+  A.setAbsent(ctx, dayState, { userId: 'u1', day: 1, absent: true });
+  assert.deepEqual(dayState.absent, ['u1']);
+  assert.equal(dayState.out.vans.v1.rows[0].userId, null, '迎えの席から降りる');
+  assert.equal(dayState.out.vans.v1.rows[1].time, '08:20', '残った人の時刻がふりなおされる');
+  assert.equal(dayState.ret.vans.v1.rows[0].userId, null, '送りの席からも降りる');
+  const left = A.unassignedUsers(ctx, dayState.out, 1, 'out', dayState.absent).map(u => u.id);
+  assert.ok(!left.includes('u1'), '休みの人は「まだ乗っていない人」に出ない');
+  assert.deepEqual(A.absentUsers(ctx, dayState, 1).map(u => u.id), ['u1']);
+  A.setAbsent(ctx, dayState, { userId: 'u1', day: 1, absent: false });
+  assert.deepEqual(dayState.absent, []);
+  assert.ok(A.unassignedUsers(ctx, dayState.out, 1, 'out', dayState.absent).some(u => u.id === 'u1'), 'とりけすと戻る');
+});
+
+test('setAbsent：同じ人を2回休みにしても1件のまま', () => {
+  const { ctx, plan } = makeFixture();
+  const dayState = plan.days['1'];
+  A.setAbsent(ctx, dayState, { userId: 'u1', day: 1, absent: true });
+  A.setAbsent(ctx, dayState, { userId: 'u1', day: 1, absent: true });
+  assert.deepEqual(dayState.absent, ['u1']);
+});
+
+test('autoAssignWeek：休みの人は自動割り当てで乗せない', () => {
+  const { ctx, plan, facility } = makeFixture();
+  plan.days['1'].absent = ['u1'];
+  const summary = A.autoAssignWeek(ctx, { plan, days: facility.days });
+  assert.ok(!A.ridersIn(plan.days['1'].out, 'v1').includes('u1'), '月曜の迎えに乗らない');
+  assert.ok(!A.ridersIn(plan.days['1'].ret, 'v1').includes('u1'), '月曜の送りにも乗らない');
+  assert.ok(A.ridersIn(plan.days['2'].out, 'v1').includes('u1'), '火曜はふつうに乗る');
+  assert.ok(!summary.skippedNoRuleUsers.some(u => u.id === 'u1'), '休みは「未設定」としても数えない');
+});
+
+test('ngPartnerIn：席の取りかえで出ていく相手は数えない', () => {
+  const { ctx, plan } = makeFixture();
+  const dirState = plan.days['1'].out;
+  A.place(ctx, dirState, { userId: 'u2', vanId: 'v1', index: 0, dir: 'out', day: 1 });
+  assert.equal(A.ngPartnerIn(ctx, dirState, 'v1', 'u1'), 'u2', 'ふつうは相手として見つかる');
+  assert.equal(A.ngPartnerIn(ctx, dirState, 'v1', 'u1', 'u2'), null, '二郎さんの席と取りかえるなら、二郎さんは出ていくので聞かない');
+});
+
+test('clearWeekAssignments：送りの「さわった印」も消えて、迎えのコピーからやり直せる', () => {
+  const { ctx, plan, facility } = makeFixture();
+  plan.days['1'].ret.touched = true;
+  A.clearWeekAssignments(ctx, { plan, days: facility.days });
+  assert.equal(plan.days['1'].ret.touched, undefined);
+});

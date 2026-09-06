@@ -192,16 +192,31 @@ function onUp(e) {
   }
   const vanId = target.el.dataset.van;
   const index = Number(target.el.dataset.idx);
-  const partner = A.ngPartnerIn(app.state.ctx, app.dirState(), vanId, uid);
+  const ctx = app.state.ctx;
+  const dirState = app.dirState();
+
+  /* その席にいた人はどうなるか。もといた席があれば取りかえっこ、プールから来たなら降りる */
+  const row = dirState.vans[vanId] ? dirState.vans[vanId].rows[index] : null;
+  const displacedId = row && row.userId ? row.userId : null;
+  const fromSeat = !!A.findRow(ctx, dirState, uid, app.state.day);
+  const nameOf = id => (ctx.usersById[id] ? ctx.usersById[id].name : '（マスタに無い方）');
+  const finish = () => {
+    app.place(uid, vanId, index);
+    if (!displacedId) return;
+    if (fromSeat) toast(`${nameOf(displacedId)}さんと席を取りかえました`);
+    else toast(`${nameOf(displacedId)}さんを降ろしました。「まだ乗っていない人」にもどっています`, 'warn');
+  };
+
+  const partner = A.ngPartnerIn(ctx, dirState, vanId, uid, displacedId);
   if (partner) {
     askNg(uid, partner, vanId).then(ok => {
       if (!ok) return;
-      app.place(uid, vanId, index);
+      finish();
       toast('いっしょに乗せました。記録にのこります', 'warn');
     });
     return;
   }
-  app.place(uid, vanId, index);
+  finish();
 }
 
 /* 同乗NGペアのときの確認（禁止はしない。最後は職員の判断） */

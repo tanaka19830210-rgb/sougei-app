@@ -10,7 +10,7 @@ import { capacity, vansForDay, NOTE_KINDS } from '../core/schema.js';
 import { DAYS, dateOfDay, weekShortLabel, parseDateKey } from '../core/dates.js';
 
 /* ---------- 利用者タイル ---------- */
-export function tileEl(app, user, { showNoRule = false } = {}) {
+export function tileEl(app, user, { showNoRule = false, absentButton = false } = {}) {
   const areas = app.state.facility.areas || {};
   const node = el('div', 'tile');
   node.style.setProperty('--area', areas[user.area] || '#b7bfb7');
@@ -24,6 +24,26 @@ export function tileEl(app, user, { showNoRule = false } = {}) {
   node.innerHTML = `<div class="nm">${escapeHtml(user.name)}</div>
     <div class="meta">${escapeHtml(user.area)}${user.wheelchair ? ICON_WHEELCHAIR.replace('<svg', '<svg class="wc-ico"') : ''}</div>` +
     (noRule ? '<div class="norule-tag">いつもの車が未設定</div>' : '');
+
+  /* 「この日は休み」ボタン（プールにだけ出す）。押した合図をタイルへ伝えると、ひっぱりが始まってしまう */
+  if (absentButton) {
+    node.classList.add('has-abs');
+    const btn = el('button', 'abs-btn', '休み');
+    btn.type = 'button';
+    btn.title = 'この日は休み。まだ乗っていない人から外します';
+    btn.addEventListener('pointerdown', e => e.stopPropagation());
+    btn.onclick = e => { e.stopPropagation(); app.setAbsent(user.id, true); };
+    node.appendChild(btn);
+  }
+  return node;
+}
+
+/* マスタから消えた方が席に残っているとき。プールへひっぱって降ろせるようにタイルにする */
+function missingTileEl(userId) {
+  const node = el('div', 'tile missing');
+  node.dataset.uid = userId;
+  node.innerHTML = '<div class="nm">（マスタに無い方）</div>' +
+    '<div class="meta">「まだ乗っていない人」へひっぱると降ろせます</div>';
   return node;
 }
 
@@ -131,7 +151,7 @@ function rowEl(app, van, vanState, row, index) {
   slot.dataset.idx = String(index);
   if (row.userId) {
     const user = app.state.ctx.usersById[row.userId];
-    slot.appendChild(user ? tileEl(app, user) : el('div', 'nm', '（マスタに無い方）'));
+    slot.appendChild(user ? tileEl(app, user) : missingTileEl(row.userId));
   } else {
     slot.textContent = '空席';
   }
@@ -168,17 +188,43 @@ export function renderPool(app) {
   const pool = document.getElementById('pool');
   pool.innerHTML = '';
   /* プールに残った人だけ、「いつもの車が未設定」の印を出す */
-  app.unassigned().forEach(user => pool.appendChild(tileEl(app, user, { showNoRule: true })));
+  app.unassigned().forEach(user => pool.appendChild(tileEl(app, user, { showNoRule: true, absentButton: true })));
+}
+
+/* ---------- この日は休みの方（プールの下） ---------- */
+export function renderAbsent(app) {
+  const box = document.getElementById('absent');
+  box.innerHTML = '';
+  const list = A.absentUsers(app.state.ctx, app.dayState(), app.state.day);
+  if (!list.length) {
+    box.classList.add('hide');
+    return;
+  }
+  box.classList.remove('hide');
+  box.appendChild(el('div', 'absent-head', 'この日は休み（紙には出ません）'));
+  list.forEach(user => {
+    const item = el('div', 'item');
+    item.appendChild(el('span', 'name', user.name));
+    const back = el('button', 'btn plain', 'もどす');
+    back.type = 'button';
+    back.onclick = () => app.setAbsent(user.id, false);
+    item.appendChild(back);
+    box.appendChild(item);
+  });
 }
 
 export function renderStatus(app) {
   const { ctx, day, dir } = app.state;
-  const total = A.targetUsers(ctx, day, dir).length;
+  const off = new Set(app.dayState().absent || []);
+  const targets = A.targetUsers(ctx, day, dir);
+  const absent = targets.filter(u => off.has(u.id)).length;
+  const total = targets.length - absent;
   const left = app.unassigned().length;
+  const tail = absent ? `（休み ${absent}名）` : '';
   const node = document.getElementById('status');
-  node.textContent = left === 0
+  node.textContent = (left === 0
     ? `${total}名 ぜんぶ乗りました`
-    : `${total}名のうち ${left}名 がまだ乗っていません`;
+    : `${total}名のうち ${left}名 がまだ乗っていません`) + tail;
   node.style.color = left === 0 ? 'var(--green-dark)' : 'var(--sub)';
 }
 

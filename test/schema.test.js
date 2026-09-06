@@ -191,3 +191,20 @@ test('normalizeDrivers：色を決めていなければ順に色をふる', () =
   assert.equal(drivers[1].color, 'blue');
   assert.equal(drivers[2].name, '未記入');
 });
+
+test('normalizePlan：休み（absent）は文字の一覧に整え、無ければ空。さわった印（touched）は残る', () => {
+  const { facility, vans } = makeFixture();
+  const raw = {
+    days: {
+      '1': { absent: ['u1', 'u1', 3, null, ''], ret: { touched: true, vans: {} } },
+      '2': {}
+    }
+  };
+  const plan = S.normalizePlan(raw, { facilityId: facility.id, weekStart: '2026-08-03', vans, days: facility.days });
+  assert.deepEqual(plan.days['1'].absent, ['u1', '3']);
+  assert.deepEqual(plan.days['2'].absent, []);
+  assert.equal(plan.days['1'].ret.touched, true);
+  assert.equal(plan.days['2'].ret.touched, undefined);
+  const empty = S.createEmptyPlan({ facilityId: 'x', weekStart: '2026-08-03', vans, days: [1] });
+  assert.deepEqual(empty.days['1'].absent, []);
+});
