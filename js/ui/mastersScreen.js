@@ -542,10 +542,11 @@ export async function start() {
       ブラウザ任せにはできない。ここで自分で聞く。
     */
     const pick = document.getElementById('facilitypick');
-    fillFacilitySelect(pick, state.facilities, state.facility.id, async () => {
-      if (await confirmLeave('事業所をかえ')) location.reload();
-      else pick.value = state.facility.id;
-    });
+    fillFacilitySelect(
+      pick, state.facilities, state.facility.id,
+      () => location.reload(),
+      () => confirmLeave('事業所をかえ')
+    );
     guardLinks();
 
     const masters = await state.repo.loadMasters(state.facility.id, { includeInactive: true });

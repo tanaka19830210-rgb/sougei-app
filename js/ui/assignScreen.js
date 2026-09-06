@@ -145,6 +145,17 @@ async function confirmLeave(actionLabel) {
   return true;
 }
 
+/* 「マスタ編集」「設定」のリンクで、未保存のまま出ていくのを止める */
+function guardLinks() {
+  document.querySelectorAll('.navbar a[href]').forEach(link => {
+    link.addEventListener('click', async e => {
+      if (!isDirty()) return;
+      e.preventDefault();
+      if (await confirmLeave('移動し')) location.href = link.href;
+    });
+  });
+}
+
 async function changeWeek(delta) {
   if (state.busy) return;
   if (!await confirmLeave('週をかえ')) return;
@@ -459,12 +470,19 @@ export async function start() {
       return;
     }
     document.getElementById('facilityname').textContent = state.facility.name;
+    /*
+      未保存のまま事業所を切りかえたり、マスタ編集・設定へ移ったりすると、
+      その週の直しが消える。iPad の Safari は beforeunload の確認を出さないので、
+      マスタ編集画面と同じように、ここで自分で聞く。
+    */
     fillFacilitySelect(
       document.getElementById('facilitypick'),
       state.facilities,
       state.facility.id,
-      () => location.reload()
+      () => location.reload(),
+      () => confirmLeave('事業所をかえ')
     );
+    guardLinks();
 
     const masters = await loadFacilityContext(state.repo, state.facility);
     state.users = masters.users;

@@ -34,8 +34,15 @@ export async function loadFacilityContext(repo, facility) {
   return { ...masters, ctx };
 }
 
-/* 事業所のえらびリストを作る。えらんだら設定に覚えて画面を読み直す */
-export function fillFacilitySelect(select, facilities, currentId, onChange) {
+/*
+  事業所のえらびリストを作る。えらんだら設定に覚えて画面を読み直す。
+
+  beforeChange を渡すと、覚える前に呼んで「進んでよいか」を聞ける
+  （未保存の直しがあるときに使う）。false が返ったら、えらびを元にもどして
+  設定にも覚えない。以前は先に覚えてしまっていたので、「やめる」を押しても
+  次に開いたとき別の事業所になっていた。
+*/
+export function fillFacilitySelect(select, facilities, currentId, onChange, beforeChange) {
   if (!select) return;
   select.innerHTML = '';
   facilities.forEach(f => {
@@ -45,7 +52,11 @@ export function fillFacilitySelect(select, facilities, currentId, onChange) {
     if (f.id === currentId) opt.selected = true;
     select.appendChild(opt);
   });
-  select.onchange = () => {
+  select.onchange = async () => {
+    if (beforeChange && !(await beforeChange())) {
+      select.value = currentId;
+      return;
+    }
     const config = loadConfig();
     config.facilityId = select.value;
     /* 覚えられなくても（プライベートブラウズなど）、画面の切りかえは進める */
