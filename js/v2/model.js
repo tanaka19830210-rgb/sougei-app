@@ -270,10 +270,15 @@ export function checkWeek(week, roster) {
     week.vans.forEach(v => {
       const trip = week.days[day].trips[v.id][leg];
       trip.rows.forEach(r => {
-        /* 同じ名字でも乗る場所がちがえば別の人（ごきょうだい等）と見て、知らせない */
-        const k = personKey(r.name) + '|' + normText(r.place);
-        if (seen.has(k)) warnings.push({ day, leg, vanId: v.id, name: personKey(r.name), text: `${where(day, leg)}に ${personKey(r.name)}様が2回入っています（${seen.get(k)} と ${v.name}）` });
-        else seen.set(k, v.name);
+        /* 同じ便に同じ人は1回しか乗れない。場所がちがっていても、入れまちがいとして知らせる */
+        const k = personKey(r.name);
+        const here = v.name + (r.place ? '・' + r.place : '');
+        if (seen.has(k)) {
+          const first = seen.get(k);
+          const text = `${where(day, leg)}に ${k}様が2回入っています（${first.here} と ${here}）`;
+          warnings.push({ day, leg, vanId: first.vanId, name: k, text, quiet: true });
+          warnings.push({ day, leg, vanId: v.id, name: k, text });
+        } else seen.set(k, { here, vanId: v.id });
       });
       const cap = roster && roster.capacity ? roster.capacity[normText(v.name)] : 0;
       if (cap && trip.rows.length > cap) {

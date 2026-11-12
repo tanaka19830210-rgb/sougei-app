@@ -73,12 +73,13 @@ test('driver・note・add_van・remember', () => {
   assert.deepEqual(r.rules, ['岡田様はセレナに乗せない']);
 });
 
-test('checkWeek：同じ人が2回・時刻の逆もどりを知らせる。場所がちがう同じ名字は知らせない', () => {
+test('checkWeek：同じ人が同じ便に2回・時刻の逆もどりを知らせる', () => {
   const w = week('2026-11-09', usual);
   put(w, 1, 'v2', 'out', '岡田', '08:10');
-  put(w, 1, 'v2', 'out', '井上', '09:00', '自宅');
-  const texts = M.checkWeek(w, { capacity: {} }).map(x => x.text);
-  assert.equal(texts.filter(t => t.includes('2回')).length, 1);
+  put(w, 1, 'v2', 'out', '井上', '09:00', '自宅');       /* 場所がちがっても、同じ便に2回は入れまちがい */
+  const texts = M.checkWeek(w, { capacity: {} }).filter(x => !x.quiet).map(x => x.text);
+  assert.equal(texts.filter(t => t.includes('2回')).length, 2);
+  assert.ok(texts.some(t => t.includes('井上様が2回') && t.includes('ハイエース・ホームA') && t.includes('セレナ・自宅')));
   assert.ok(texts.some(t => t.includes('早くなって')));
 });
 

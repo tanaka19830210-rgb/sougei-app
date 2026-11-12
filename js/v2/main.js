@@ -3,7 +3,7 @@
 
    流れ：
    1. 週をひらく。まだ作っていない週なら、これまでの表から自動で下書きを作る
-   2. 「AIに伝える」で今週の事情を声か文字で伝える → 変更が色つきで出る → 「これでよし」
+   2. 「AIに伝える」で今週の事情を声か文字で伝える → 変更が色つきで出る → 「これでよい」
    3. のこりは名前の札を指で動かして直す
    4. 「保存」
    ============================================================ */
@@ -11,7 +11,7 @@
 import { loadConfig, saveConfig } from '../config.js';
 import { createStore } from '../store/index.js';
 import { createRepository } from '../store/repository.js';
-import { currentWeekKey, shiftWeekKey, weekLongLabel } from '../core/dates.js';
+import { currentWeekKey, shiftWeekKey, weekLongLabel, weekShortLabel } from '../core/dates.js';
 import { escapeHtml } from '../core/html.js';
 import * as M from './model.js';
 import { buildDraft } from './draft.js';
@@ -27,7 +27,7 @@ const HISTORY_WEEKS = 8;
 const app = {
   config: null, store: null, facilities: [], facility: null,
   weekKey: '', week: null, exists: false, dirty: false,
-  history: [], roster: { people: [], drivers: [], capacity: {} },
+  warnings: [], history: [], roster: { people: [], drivers: [], capacity: {} },
   rules: [], undo: [], preview: null, shas: new Map(), board: null
 };
 
@@ -75,18 +75,21 @@ function draw() {
   const showing = app.preview ? app.preview.week : app.week;
   const warnings = M.checkWeek(showing, app.roster);
   app.board.render({ week: showing, warnings, changes: app.preview ? app.preview.changes : [], locked: !!app.preview });
-  $('weeklabel').textContent = weekLongLabel(app.weekKey);
+  $('weeklabel').textContent = weekShortLabel(app.weekKey) + 'の週';
   $('printhead').textContent = `${app.facility.printTitle || app.facility.name}　${weekLongLabel(app.weekKey)}`;
   $('undo').disabled = !app.undo.length || !!app.preview;
   $('save').classList.toggle('dirty', app.dirty);
   $('save').textContent = app.dirty ? '保存する' : '保存ずみ';
   $('save').disabled = !!app.preview;
-  ['draft', 'ai', 'prev', 'next', 'facility'].forEach(id => { $(id).disabled = !!app.preview; });
+  ['draft', 'ai', 'rules', 'prev', 'next', 'facility'].forEach(id => { $(id).disabled = !!app.preview; });
   const w = $('warn');
-  w.hidden = !warnings.length;
-  w.textContent = `⚠ ${warnings.length}`;
+  const shown = warnings.filter(x => !x.quiet);
+  app.warnings = shown.map(x => x.text);
+  w.hidden = !shown.length;
+  w.textContent = `⚠ 矛盾 ${shown.length}`;
+  $('rules').textContent = `決まりごと ${app.rules.length}`;
   w.onclick = () => {
-    const sheet = openSheet(`<h3>気をつける所（${warnings.length}）</h3><ul class="warnlist">${warnings.map(x => `<li>${escapeHtml(x.text)}</li>`).join('')}</ul><div class="row"><div class="grow"></div><button class="btn2" data-close>とじる</button></div>`, { middle: true });
+    const sheet = openSheet(`<h3>つじつまが合っていない所（${shown.length}）</h3><ul class="warnlist">${shown.map(x => `<li>${escapeHtml(x.text)}</li>`).join('')}</ul><div class="row"><div class="grow"></div><button class="btn2" data-close>とじる</button></div>`, { middle: true });
     sheet.querySelector('[data-close]').onclick = closeSheet;
   };
   if (app.board.isFit) app.board.fit();
@@ -303,15 +306,16 @@ function aiSheet(prefill = '') {
     <h3>今週の事情を伝える</h3>
     <div class="talk">
       ${canHear ? '<button class="mic" id="mic" type="button" aria-label="話す"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.9V21h2v-2.1A7 7 0 0019 12h-2z"/></svg></button>' : ''}
-      <div class="hint">${canHear ? 'マイクを押して、ふだんの言葉で話してください。もう一度押すと止まります。' : 'この端末では、下のらんを押してキーボードのマイク（🎤）で話してください。'}<br>
+      <div class="hint">下のらんを押して、Typeless などの音声入力でそのまま話してください。${canHear ? '左のマイクでも聞き取れます（もう一度押すと止まります）。' : ''}<br>
       例：「井上さんは木曜お休み。岡田さんは金曜、病院なので送りなし。火曜のセレナの運転は山田さん」</div>
     </div>
     <label>伝える内容（聞きまちがいは、そのままでも AI が名簿を見て直します）</label>
     <textarea id="f-say" placeholder="ここに文字で打ってもかまいません">${escapeHtml(prefill)}</textarea>
     <div class="interim" id="interim"></div>
+    <label class="keep"><input type="checkbox" id="f-keep"> <b>これは毎週の決まりごととして覚える</b><span>（今週だけでなく、これからずっと守ること。例：「井上様は車椅子なのでハイエースに乗せる」）</span></label>
     <div class="busy" id="busy">AI が表を見ています…（10〜40秒ほど）</div>
     <div class="row">
-      <button class="btn2" id="f-rules" type="button">決まりごと（${app.rules.length}）</button>
+      <button class="btn2" id="f-rules" type="button">覚えている決まりごと（${app.rules.length}）</button>
       <div class="grow"></div>
       <button class="btn2" id="f-cancel" type="button">とじる</button>
       <button class="btn2 go" id="f-send" type="button">伝える</button>
@@ -332,14 +336,15 @@ function aiSheet(prefill = '') {
   $('f-rules').onclick = () => { stopVoice(); rulesSheet(); };
   $('f-send').onclick = async () => {
     stopVoice();
-    const text = $('f-say').value.trim();
+    let text = $('f-say').value.trim();
+    if (text && $('f-keep').checked) text = '【毎週の決まりごと】' + text;
     if (!text) { toast('伝える内容を入れてください', 'warn'); return; }
     if (!app.config.aiKey) { needKey(); return; }
     $('busy').classList.add('show'); $('f-send').disabled = true;
     try {
       const answer = await askAi({
         apiKey: app.config.aiKey, week: app.week, roster: app.roster, rules: app.rules, instruction: text,
-        weekLabel: weekLongLabel(app.weekKey), pastInstructions: (app.week.log || []).map(l => l.text)
+        weekLabel: weekLongLabel(app.weekKey), pastInstructions: (app.week.log || []).map(l => l.text), warnings: app.warnings
       });
       closeSheet();
       showAnswer(text, answer);
@@ -358,14 +363,14 @@ function needKey() {
   sheet.querySelector('[data-close]').onclick = closeSheet;
 }
 
-/* AI の答えを、表に色つきで仮に当てて見せる。人が「これでよし」を押すまで確定しない */
+/* AI の答えを、表に色つきで仮に当てて見せる。人が「これでよい」を押すまで確定しない */
 function showAnswer(said, answer) {
   const result = M.applyOps(app.week, answer.ops);
   const nothing = !result.changes.length && !result.rules.length;
   app.preview = nothing ? null : { week: result.week, changes: result.changes, rules: result.rules, said };
   const items = answer.summary.map(s => `<li>${escapeHtml(s)}</li>`).join('');
   const qs = [...answer.questions, ...result.problems].map(s => `<li class="q">${escapeHtml(s)}</li>`).join('');
-  const rules = result.rules.map(s => `<li>決まりごととして覚えます：${escapeHtml(s)}</li>`).join('');
+  const rules = result.rules.map(s => `<li class="rule"><b>毎週の決まりごととして覚えます</b>：${escapeHtml(s)}</li>`).join('');
   $('confirmbody').innerHTML = `
     ${answer.heard ? `<div class="heard">聞き取った内容：${escapeHtml(answer.heard)}</div>` : ''}
     ${items || rules ? `<ul>${items}${rules}</ul>` : ''}
@@ -397,13 +402,14 @@ async function saveRules(list) {
   try {
     await writeFile(rulesPath(app.facility.id), { schemaVersion: M.SCHEMA_VERSION, facilityId: app.facility.id, updatedAt: new Date().toISOString(), rules: list }, `決まりごと ${app.facility.shortName || app.facility.name} を更新`);
     app.rules = list;
+    $('rules').textContent = `決まりごと ${list.length}`;
     toast('決まりごとを覚えました');
   } catch (e) { toast('決まりごとを保存できませんでした：' + (e.message || e), 'error'); }
 }
 
 function rulesSheet() {
   openSheet(`<h3>決まりごと（毎週守ること）</h3>
-    <p class="lead">AI が毎回読みます。1行に1つ。例：「井上様は車椅子なのでハイエースかセレナに乗せる」「藤本様と小林様は同じ車にしない」。<br>
+    <p class="lead">ここに書いたことは、AI が毎回かならず読んで守ります。1行に1つ。例：「井上様は車椅子なのでハイエースかセレナに乗せる」「藤本様と小林様は同じ車にしない」。<br>
     「AIに伝える」で「これからは毎週〜して」と話しても、ここに足されます。</p>
     <textarea id="f-rules-text">${escapeHtml(app.rules.join('\n'))}</textarea>
     <div class="row"><div class="grow"></div><button class="btn2" id="f-cancel" type="button">やめる</button><button class="btn2 go" id="f-ok" type="button">覚える</button></div>`);
@@ -495,6 +501,7 @@ export async function start() {
   $('zfit').onclick = () => app.board.fit();
   $('more').onclick = menuSheet;
   $('ai').onclick = () => aiSheet('');
+  $('rules').onclick = rulesSheet;
   $('draft').onclick = () => {
     if (!app.history.length) { toast('もとにする、これまでの表がありません', 'warn'); return; }
     if (!window.confirm('これまでの表から、この週を自動で組みなおします。いまの内容は置きかわります（「戻す」で元にもどせます）。')) return;

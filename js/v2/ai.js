@@ -3,7 +3,7 @@
 
    - AI は表を直接書きかえない。「だれを・どの日の・どの車へ」という
      命令（ops）を返すだけ。実際に表へ当てるのは model.js の applyOps で、
-     当てたあと人が見て「これでよし」を押すまで確定しない。
+     当てたあと人が見て「これでよい」を押すまで確定しない。
    - 声の聞きまちがい（「いのうえ」「井ノ上」→ 井上）は、名簿を AI に
      渡して直してもらう。名簿は、これまでの表から自動で作ったもの。
    - 鍵（APIキー）はこの端末のブラウザにだけ置き、Anthropic へ直接送る。
@@ -70,12 +70,14 @@ const GUIDE = `あなたは障害福祉の生活介護事業所で、週の送�
 - 「送りなし」「迎えなし」は、その便だけはずし、連絡らんにも同じ言葉を足す。
 - 乗る場所が変わる（「今週はホームAから」など）ときは、同じ日にその場所へ行く車があればその車へ移し、時刻はその車で同じ場所の人に合わせる。無ければ場所だけ直して questions に書く。
 - 人をはずした結果、1人しか乗らない車や、偏りが気になる所があれば、動かさずに questions で知らせる（勝手に組みかえない）。
+- 「つじつまが合っていない所」に書かれた人について頼まれたとき（同じ便に2回入っている人をはずす・移す等）は、どちらの行のことか決めつけず、分かる範囲で直したうえで questions で必ず知らせる。頼まれていなくても、直したほうがよい矛盾に気づいたら questions に書く（勝手には直さない）。
+- 言葉の頭に【毎週の決まりごと】とあるときは、その内容を remember で覚え、今週の表にも当てはまるなら合わせて直す。
 - 言われていないことは変えない。曜日を言われなかったら、文の流れから分かる範囲だけにする。分からなければ questions に。
 - 「決まりごと」に反する変更を頼まれたら、頼まれたとおりにしたうえで questions で知らせる。
 - summary は「木曜：井上様をセレナ（送り）へ」のように、職員がそのまま確かめられる言葉で。
 - 変える所が何も無いとき（質問だけ・聞き取れない等）は ops を空にして、questions に聞き返しを書く。`;
 
-export function buildRequest({ week, roster, rules, instruction, weekLabel, pastInstructions }) {
+export function buildRequest({ week, roster, rules, instruction, weekLabel, pastInstructions, warnings }) {
   const people = (roster.people || []).map(p => p.name + (p.places.filter(Boolean).length ? `（${p.places.filter(Boolean).slice(0, 4).join('・')}）` : '')).join('、');
   const context = [
     `## 対象の週\n${weekLabel || week.weekStart}（曜日: ${Object.entries(DAY_NAMES).map(([n, d]) => `${n}=${d}`).join(' ')}）`,
@@ -84,6 +86,7 @@ export function buildRequest({ week, roster, rules, instruction, weekLabel, past
     `## 運転手\n${(roster.drivers || []).slice(0, 30).join('、') || '（不明）'}`,
     `## 決まりごと（毎週守ること）\n${(rules || []).length ? rules.map(r => '- ' + r).join('\n') : '（まだありません）'}`,
     (pastInstructions || []).length ? `## この週に、すでに伝えられて反映ずみのこと\n${pastInstructions.map(t => '- ' + t).join('\n')}` : '',
+    (warnings || []).length ? `## いまの表で、つじつまが合っていない所（プログラムが見つけたもの）\n${warnings.map(t => '- ' + t).join('\n')}` : '',
     `## いまの送迎表\n${weekToText(week)}`
   ].filter(Boolean).join('\n\n');
 
