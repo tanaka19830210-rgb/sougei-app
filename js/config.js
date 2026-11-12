@@ -13,7 +13,8 @@ export const DEFAULT_CONFIG = {
   repo: '',
   branch: 'main',
   facilityId: '',
-  editorName: ''
+  editorName: '',
+  aiKey: ''      /* 「AIに伝える」で使う Anthropic の APIキー。この端末にだけ置く */
 };
 
 function storageOf(storage) {

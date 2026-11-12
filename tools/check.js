@@ -90,13 +90,15 @@ files.filter(f => extname(f) === '.json').forEach(file => {
 
 /* 5. 画面ごとに、JS がさわる id が HTML にあるか */
 const SCREENS = [
-  { html: 'index.html', js: ['js/ui/assignScreen.js', 'js/ui/assignRender.js', 'js/ui/drag.js'] },
+  { html: 'index.html', js: ['js/v2/main.js', 'js/v2/board.js'] },
+  { html: 'v1.html', js: ['js/ui/assignScreen.js', 'js/ui/assignRender.js', 'js/ui/drag.js'] },
   { html: 'print.html', js: ['js/ui/printScreen.js'] },
   { html: 'settings.html', js: ['js/ui/settingsScreen.js'] },
   { html: 'masters.html', js: ['js/ui/mastersScreen.js'] }
 ];
 /* dom.js が自分で作る（HTMLに無くてもよい）もの */
-const MADE_BY_JS = new Set(['toast', 'veil']);
+/* v2 の画面は、入力らん（f-〜）や聞き取りのらんを、押されたときに JS が作る */
+const MADE_BY_JS = new Set(['toast', 'veil', 'mic', 'interim', 'busy', 'dl-people']);
 
 SCREENS.forEach(screen => {
   const html = readFileSync(join(ROOT, screen.html), 'utf8');
@@ -108,7 +110,7 @@ SCREENS.forEach(screen => {
   });
   ids.forEach(id => {
     checked++;
-    if (MADE_BY_JS.has(id)) return;
+    if (MADE_BY_JS.has(id) || id.startsWith('f-')) return;
     if (!new RegExp(`id="${id}"`).test(html)) {
       problems.push(`id がありません: ${screen.html} に id="${id}"（JS がさわろうとしています）`);
     }
@@ -154,6 +156,23 @@ walk(join(ROOT, 'data')).filter(f => f.endsWith('.json')).forEach(file => {
       if (!item || typeof item !== 'object') return;
       nameKeys.forEach(k => { if (item[k]) realNameCheck(item[k], `${rel} の ${key}`); });
     });
+  });
+});
+
+/* 週の表（v2）は、お名前が名字だけで入る。ダミー名簿の名字にあるものだけ通す */
+const allowedFamily = new Set([...allowed].map(n => n.split(/\s+/)[0]));
+walk(join(ROOT, 'data')).filter(f => /[\\/]weeks[\\/].+\.json$/.test(f)).forEach(file => {
+  const rel = relative(ROOT, file).replace(/\\/g, '/');
+  let json;
+  try { json = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { return; }
+  Object.values(json.days || {}).forEach(day => {
+    if ((day.notes || []).some(n => ![...allowedFamily].some(f => n.includes(f)))) realNameCheck((day.notes || []).join(' / '), `${rel} の連絡`);
+    Object.values(day.trips || {}).forEach(trip => ['out', 'ret'].forEach(leg => {
+      const t = trip[leg] || {};
+      checked++;
+      if (t.driver && !allowedFamily.has(t.driver)) realNameCheck(t.driver, `${rel} の運転手`);
+      (t.rows || []).forEach(r => { checked++; if (!allowedFamily.has(r.name)) realNameCheck(r.name, `${rel} の利用者`); });
+    }));
   });
 });
 
