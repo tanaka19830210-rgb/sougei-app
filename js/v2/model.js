@@ -70,7 +70,7 @@ export function normText(s) {
   return String(s == null ? '' : s).normalize('NFKC').replace(/\s+/g, '').trim();
 }
 
-/* 「谷口様」「谷口さん」「谷口」を同じ人として扱うための鍵 */
+/* 「井上様」「井上さん」「井上」を同じ人として扱うための鍵 */
 export function personKey(name) {
   return normText(name).replace(/(様|さん|くん|君|ちゃん)$/, '');
 }

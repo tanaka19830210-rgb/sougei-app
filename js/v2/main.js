@@ -258,7 +258,7 @@ function driverSheet(pos) {
 function notesSheet(day) {
   openSheet(`
     <h3>${M.DAY_NAMES[day]}曜の連絡</h3>
-    <p class="lead">1行に1つ書きます（例：谷口様休み（病院受診））。</p>
+    <p class="lead">1行に1つ書きます（例：井上様休み（病院受診））。</p>
     <textarea id="f-notes">${escapeHtml(app.week.days[day].notes.join('\n'))}</textarea>
     <div class="row"><div class="grow"></div><button class="btn2" id="f-cancel" type="button">やめる</button><button class="btn2 go" id="f-ok" type="button">決定</button></div>`, { middle: true });
   $('f-cancel').onclick = closeSheet;
@@ -304,7 +304,7 @@ function aiSheet(prefill = '') {
     <div class="talk">
       ${canHear ? '<button class="mic" id="mic" type="button" aria-label="話す"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.9V21h2v-2.1A7 7 0 0019 12h-2z"/></svg></button>' : ''}
       <div class="hint">${canHear ? 'マイクを押して、ふだんの言葉で話してください。もう一度押すと止まります。' : 'この端末では、下のらんを押してキーボードのマイク（🎤）で話してください。'}<br>
-      例：「谷口さんは木曜お休み。平田さんは金曜、病院なので送りなし。火曜のノアの運転は小野さん」</div>
+      例：「井上さんは木曜お休み。岡田さんは金曜、病院なので送りなし。火曜のセレナの運転は山田さん」</div>
     </div>
     <label>伝える内容（聞きまちがいは、そのままでも AI が名簿を見て直します）</label>
     <textarea id="f-say" placeholder="ここに文字で打ってもかまいません">${escapeHtml(prefill)}</textarea>
@@ -403,7 +403,7 @@ async function saveRules(list) {
 
 function rulesSheet() {
   openSheet(`<h3>決まりごと（毎週守ること）</h3>
-    <p class="lead">AI が毎回読みます。1行に1つ。例：「谷口様は車椅子なのでハイエースかノアに乗せる」「渡部様と寄高様は同じ車にしない」。<br>
+    <p class="lead">AI が毎回読みます。1行に1つ。例：「井上様は車椅子なのでハイエースかセレナに乗せる」「藤本様と小林様は同じ車にしない」。<br>
     「AIに伝える」で「これからは毎週〜して」と話しても、ここに足されます。</p>
     <textarea id="f-rules-text">${escapeHtml(app.rules.join('\n'))}</textarea>
     <div class="row"><div class="grow"></div><button class="btn2" id="f-cancel" type="button">やめる</button><button class="btn2 go" id="f-ok" type="button">覚える</button></div>`);
