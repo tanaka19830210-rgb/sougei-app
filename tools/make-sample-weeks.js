@@ -16,9 +16,9 @@ const names = JSON.parse(readFileSync(join(ROOT, 'tools/dummy-names.json'), 'utf
 const family = [...new Set(names.filter(n => n.includes(' ')).map(n => n.split(/\s+/)[0]))];
 const drivers = ['山田', '佐々木', '木下', '高橋', '藤井', '村上', '岡'];
 const riders = family.filter(n => !drivers.includes(n)).slice(0, 26);
-/* 各事業所、車は最大6台 */
-const vans = ['ハイエース', 'キャラバン', 'セレナ', 'ステップワゴン', 'フリード', 'タント'].map((name, i) => ({ id: 'v' + (i + 1), name }));
+/* 各事業所、車は最大6台。SEATS は車ごとの最大の乗車人数 */
 const SEATS = [7, 5, 4, 3, 3, 2];
+const vans = ['ハイエース', 'キャラバン', 'セレナ', 'ステップワゴン', 'フリード', 'タント'].map((name, i) => ({ id: 'v' + (i + 1), name, seats: SEATS[i] }));
 const places = ['', '', 'ホームA', 'ホームB'];
 const hhmm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
 

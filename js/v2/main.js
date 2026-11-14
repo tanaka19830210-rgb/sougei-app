@@ -74,7 +74,7 @@ function closeSheet() { $('shade').className = 'shade'; $('sheet').innerHTML = '
 function draw() {
   const showing = app.preview ? app.preview.week : app.week;
   const warnings = M.checkWeek(showing, app.roster);
-  app.board.render({ week: showing, warnings, changes: app.preview ? app.preview.changes : [], locked: !!app.preview });
+  app.board.render({ week: showing, warnings, changes: app.preview ? app.preview.changes : [], locked: !!app.preview, roster: app.roster });
   $('weeklabel').textContent = weekShortLabel(app.weekKey) + 'の週';
   $('printhead').textContent = `${app.facility.printTitle || app.facility.name}　${weekLongLabel(app.weekKey)}`;
   $('undo').disabled = !app.undo.length || !!app.preview;
@@ -277,11 +277,17 @@ function vanSheet(vanId) {
   const van = vanId ? app.week.vans.find(v => v.id === vanId) : null;
   const used = van && M.DAY_NUMBERS.some(d => M.LEGS.some(l => app.week.days[d].trips[van.id][l].rows.length));
   openSheet(`
-    <h3>${van ? '車の名前を直す' : '車を足す'}</h3>
+    <h3>${van ? '車の名前・最大人数を直す' : '車を足す'}</h3>
+    <label>車の名前</label>
     <input type="text" id="f-van" value="${van ? escapeHtml(van.name) : ''}" placeholder="例：レンタカー" autocomplete="off">
-    <div class="row">${van ? `<button class="btn2 danger" id="f-del" type="button" ${used ? 'disabled' : ''}>${used ? '人が乗っているので消せません' : 'この車を消す'}</button>` : ''}
+    <label>最大の乗車人数（利用者が何人まで乗れるか）</label>
+    <input type="text" inputmode="numeric" id="f-seats" value="${van && van.seats ? van.seats : ''}" placeholder="${van && M.seatsOf(van, app.roster).seats ? 'まだ決めていません（これまでの最大は ' + M.seatsOf(van, app.roster).seats + '人）' : '例：6'}" autocomplete="off">
+    <div class="quick">${[2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-seats="${n}">${n}人</button>`).join('')}</div>
+    <p class="lead" style="margin-top:8px;">決めた人数は、次の週の下書きにも引きつがれます。超えると「⚠ 矛盾」で知らせます。</p>
+    <div class="row">${van ? `<button class="btn2 danger" id="f-del" type="button" ${used ? 'disabled title="人が乗っているので消せません"' : ''}>この車を消す</button>` : ''}
     <div class="grow"></div><button class="btn2" id="f-cancel" type="button">やめる</button><button class="btn2 go" id="f-ok" type="button">決定</button></div>`, { middle: true });
   $('f-cancel').onclick = closeSheet;
+  $('sheet').querySelectorAll('[data-seats]').forEach(b => { b.onclick = () => { $('f-seats').value = b.dataset.seats; }; });
   if (van) $('f-del').onclick = () => {
     const next = M.clone(app.week);
     next.vans = next.vans.filter(v => v.id !== van.id);
@@ -291,9 +297,10 @@ function vanSheet(vanId) {
   $('f-ok').onclick = () => {
     const name = $('f-van').value.trim();
     if (!name) return;
+    const seats = Math.max(0, Math.floor(Number($('f-seats').value.normalize('NFKC'))) || 0);
     closeSheet();
-    if (van) { const next = M.clone(app.week); next.vans.find(v => v.id === van.id).name = name; commit(next); }
-    else applyAndCommit([{ type: 'add_van', van: name }]);
+    if (van) { const next = M.clone(app.week); Object.assign(next.vans.find(v => v.id === van.id), { name, seats }); commit(next); }
+    else applyAndCommit([{ type: 'add_van', van: name, seats }]);
   };
 }
 
@@ -465,8 +472,10 @@ export async function start() {
   badge.className = 'badge' + (app.store.mode === 'local' ? ' local' : '');
   badge.title = app.store.label || '';
 
+  /* ならべ方を見くらべるための入口：アドレスの後ろに ?layout=tall（たて積み）か ?layout=wide（よこ並べ）を付ける */
+  const layout = new URLSearchParams(location.search).get('layout') || 'auto';
   app.board = createBoard({
-    stage: $('stage'), board: $('board'),
+    stage: $('stage'), board: $('board'), layout,
     handlers: {
       onMove: moveRider,
       onRemove: removeAt,

@@ -20,7 +20,7 @@ export function emptyTrip() {
 }
 
 export function createEmptyWeek({ facilityId, weekStart, vans = [] }) {
-  const week = { schemaVersion: SCHEMA_VERSION, facilityId, weekStart, vans: vans.map(v => ({ id: v.id, name: v.name })), days: {}, log: [] };
+  const week = { schemaVersion: SCHEMA_VERSION, facilityId, weekStart, vans: vans.map(cleanVan), days: {}, log: [] };
   DAY_NUMBERS.forEach(d => {
     week.days[d] = { notes: [], trips: {} };
     week.vans.forEach(v => { week.days[d].trips[v.id] = emptyTrip(); });
@@ -33,7 +33,7 @@ export function normalizeWeek(raw, { facilityId, weekStart } = {}) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const vans = (Array.isArray(src.vans) ? src.vans : [])
     .filter(v => v && v.id && v.name)
-    .map(v => ({ id: String(v.id), name: String(v.name) }));
+    .map(cleanVan);
   const week = createEmptyWeek({ facilityId: src.facilityId || facilityId, weekStart: src.weekStart || weekStart, vans });
   DAY_NUMBERS.forEach(d => {
     const day = (src.days && src.days[d]) || {};
@@ -53,6 +53,19 @@ export function normalizeWeek(raw, { facilityId, weekStart } = {}) {
   if (src.updatedAt) week.updatedAt = src.updatedAt;
   if (src.updatedBy) week.updatedBy = src.updatedBy;
   return week;
+}
+
+/* seats＝その車に乗れる利用者の最大人数（0 は「まだ決めていない」） */
+function cleanVan(v) {
+  const seats = Math.floor(Number(v.seats));
+  return { id: String(v.id), name: String(v.name), seats: seats > 0 ? seats : 0 };
+}
+
+/* 車の最大人数。決めてあればその数、まだなら「これまでの表でいちばん多かった人数」を仮に使う */
+export function seatsOf(van, roster) {
+  if (van.seats > 0) return { seats: van.seats, fixed: true };
+  const learned = roster && roster.capacity ? roster.capacity[normText(van.name)] || 0 : 0;
+  return { seats: learned, fixed: false };
 }
 
 function cleanRow(r) {
@@ -247,7 +260,7 @@ export function applyOps(source, ops) {
       case 'add_van': {
         if (vanByName(week, op.van)) break;
         const id = 'v' + (Math.max(0, ...week.vans.map(v => Number(String(v.id).replace(/\D/g, '')) || 0)) + 1);
-        week.vans.push({ id, name: String(op.van) });
+        week.vans.push(cleanVan({ id, name: op.van, seats: op.seats }));
         DAY_NUMBERS.forEach(d => { week.days[d].trips[id] = emptyTrip(); });
         break;
       }
@@ -280,9 +293,9 @@ export function checkWeek(week, roster) {
           warnings.push({ day, leg, vanId: v.id, name: k, text });
         } else seen.set(k, { here, vanId: v.id });
       });
-      const cap = roster && roster.capacity ? roster.capacity[normText(v.name)] : 0;
-      if (cap && trip.rows.length > cap) {
-        warnings.push({ day, leg, vanId: v.id, text: `${where(day, leg)}の${v.name}が${trip.rows.length}人です（これまでの最大は${cap}人）` });
+      const cap = seatsOf(v, roster);
+      if (cap.seats && trip.rows.length > cap.seats) {
+        warnings.push({ day, leg, vanId: v.id, text: `${where(day, leg)}の${v.name}が${trip.rows.length}人です（${cap.fixed ? '最大' : 'これまでの最大は'}${cap.seats}人）` });
       }
       let prev = '';
       trip.rows.forEach(r => {
