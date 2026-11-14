@@ -59,7 +59,14 @@ input,textarea{-webkit-user-select:text;user-select:text;}
 .vanname{display:flex;align-items:center;justify-content:center;background:#e6efe5;font-weight:700;cursor:pointer;position:sticky;left:0;z-index:4;}
 .vanname.alt{background:#dbe7f2;}
 .vanname.notes{background:#f6ecd9;cursor:default;}
-.vanname span{writing-mode:vertical-rl;letter-spacing:.06em;font-size:.95em;white-space:nowrap;}
+.vanname{flex-direction:column;gap:.15em;overflow:hidden;padding:.1em 0;}
+.vanname .cap{flex:none;font-size:.74em;background:#fff;border:1px solid #9aa69a;border-radius:.4em;padding:0 .2em;line-height:1.35;white-space:nowrap;}
+.vanname .cap.guess{border-style:dashed;color:#888;font-weight:400;}
+.drv .cnt{margin-left:auto;font-style:normal;font-variant-numeric:tabular-nums;font-size:.95em;color:#555;padding:0 .15em;}
+.drv .cnt.full{color:#b06a00;font-weight:700;}
+.drv .cnt.over{color:#fff;background:#d6453a;border-radius:.3em;font-weight:700;padding:0 .3em;}
+.drv .cnt + .add{margin-left:0;}
+.vanname span{writing-mode:vertical-rl;letter-spacing:0;font-size:.84em;line-height:1.1;white-space:nowrap;}
 
 .cell{padding:.1em .15em .15em;min-height:1.6em;}
 /* 迎え＝あたたかい色（朝）、送り＝青（夕方）。車ごとに濃さを少し変えて、段の切れ目を見やすくする */

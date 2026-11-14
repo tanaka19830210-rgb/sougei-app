@@ -9,7 +9,7 @@
      指でずらせなくなるため）。マウスはすぐ持ち上がる。
    ============================================================ */
 
-import { DAY_NUMBERS, DAY_NAMES, LEGS, LEG_NAMES, dayCounts, shortTime, personKey, normText } from './model.js';
+import { DAY_NUMBERS, DAY_NAMES, LEGS, LEG_NAMES, dayCounts, shortTime, personKey, normText, seatsOf } from './model.js';
 import { escapeHtml } from '../core/html.js';
 import { dateOfDay, mdLabel } from '../core/dates.js';
 
@@ -34,7 +34,7 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
   /* ---------- 描く ---------- */
   function render(next) {
     state = next;
-    const { week, warnings = [], changes = [], locked } = state;
+    const { week, warnings = [], changes = [], locked, roster } = state;
     const warnKey = new Set(warnings.filter(w => w.name).map(w => `${w.day}|${w.leg}|${w.vanId}|${w.name}`));
     const warnCell = new Set(warnings.filter(w => !w.name).map(w => `${w.day}|${w.leg}|${w.vanId}`));
     const changedCell = new Set(changes.filter(c => !c.note).map(c => `${c.day}|${c.leg}|${c.vanId}`));
@@ -48,7 +48,8 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
     });
 
     week.vans.forEach((van, vi) => {
-      html.push(`<div class="vanname${vi % 2 ? ' alt' : ''}" data-van="${escapeHtml(van.id)}"><span>${escapeHtml(van.name)}</span></div>`);
+      const cap = seatsOf(van, roster);
+      html.push(`<div class="vanname${vi % 2 ? ' alt' : ''}" data-van="${escapeHtml(van.id)}"><span>${escapeHtml(van.name)}</span><b class="cap${cap.fixed ? '' : ' guess'}" title="${cap.fixed ? '最大の乗車人数' : 'これまでの最大（まだ決めていません）'}">${cap.seats ? cap.seats + '人' : '？人'}</b></div>`);
       const order = [];
       if (wide) DAY_NUMBERS.forEach(day => LEGS.forEach(leg => order.push([day, leg])));
       else LEGS.forEach(leg => DAY_NUMBERS.forEach(day => order.push([day, leg])));
@@ -58,7 +59,7 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
           const key = `${day}|${leg}|${van.id}`;
           const cls = ['cell', leg, vi % 2 ? 'alt' : '', changedCell.has(key) ? 'changed' : '', warnCell.has(key) ? 'warn' : '', trip.rows.length || trip.driver ? '' : 'empty'].filter(Boolean).join(' ');
           html.push(`<div class="${cls}" data-day="${day}" data-van="${escapeHtml(van.id)}" data-leg="${leg}">`);
-          html.push(`<div class="drv"><i>${LEG_NAMES[leg][0]}</i><span class="${trip.driver ? '' : 'none'}">${escapeHtml(trip.driver || '運転手')}</span><u class="add" title="人を足す">＋</u></div>`);
+          html.push(`<div class="drv"><i>${LEG_NAMES[leg][0]}</i><span class="${trip.driver ? '' : 'none'}">${escapeHtml(trip.driver || '運転手')}</span>${trip.rows.length ? `<em class="cnt${cap.seats && trip.rows.length > cap.seats ? ' over' : cap.seats && trip.rows.length === cap.seats ? ' full' : ''}">${trip.rows.length}${cap.seats ? '/' + cap.seats : ''}</em>` : ''}<u class="add" title="人を足す">＋</u></div>`);
           trip.rows.forEach((row, i) => {
             const k = `${key}|${personKey(row.name)}`;
             const c2 = ['chip', row.flag || '', warnKey.has(k) ? 'warn' : '', changedName.has(k) ? 'changed' : ''].filter(Boolean).join(' ');

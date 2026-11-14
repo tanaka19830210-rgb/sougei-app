@@ -10,7 +10,7 @@
      npm の部品を使わないアプリなので、SDK ではなく fetch で呼んでいる。
    ============================================================ */
 
-import { weekToText, DAY_NAMES } from './model.js';
+import { weekToText, DAY_NAMES, seatsOf } from './model.js';
 
 export const AI_MODEL = 'claude-opus-5-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
@@ -73,6 +73,7 @@ const GUIDE = `あなたは障害福祉の生活介護事業所で、週の送�
 - 「つじつまが合っていない所」に書かれた人について頼まれたとき（同じ便に2回入っている人をはずす・移す等）は、どちらの行のことか決めつけず、分かる範囲で直したうえで questions で必ず知らせる。頼まれていなくても、直したほうがよい矛盾に気づいたら questions に書く（勝手には直さない）。
 - 言葉の頭に【毎週の決まりごと】とあるときは、その内容を remember で覚え、今週の表にも当てはまるなら合わせて直す。
 - 「点検して」と頼まれたときは ops を空にして、気づいたことを questions に1つずつ書く。見る所：同じ便に同じ人が2回、迎えだけ／送りだけの人（連絡らんに理由が無いもの）、時刻の順がおかしい所、決まりごとに反する所、連絡らんと表の食いちがい（「休み」と書いてあるのに乗っている等）、1人だけの車や人数の偏り。問題が無ければ「気になる所はありませんでした」と書く。
+- 車の最大人数を超える乗せ方はしない。頼まれた変更で超えてしまうときは、頼まれたとおりにしたうえで questions で必ず知らせる。
 - 言われていないことは変えない。曜日を言われなかったら、文の流れから分かる範囲だけにする。分からなければ questions に。
 - 「決まりごと」に反する変更を頼まれたら、頼まれたとおりにしたうえで questions で知らせる。
 - summary は「木曜：井上様をセレナ（送り）へ」のように、職員がそのまま確かめられる言葉で。
@@ -82,7 +83,7 @@ export function buildRequest({ week, roster, rules, instruction, weekLabel, past
   const people = (roster.people || []).map(p => p.name + (p.places.filter(Boolean).length ? `（${p.places.filter(Boolean).slice(0, 4).join('・')}）` : '')).join('、');
   const context = [
     `## 対象の週\n${weekLabel || week.weekStart}（曜日: ${Object.entries(DAY_NAMES).map(([n, d]) => `${n}=${d}`).join(' ')}）`,
-    `## 車\n${week.vans.map(v => v.name).join('、')}`,
+    `## 車（かっこ内は、利用者が乗れる最大人数）\n${week.vans.map(v => { const c = seatsOf(v, roster); return v.name + (c.seats ? `（${c.fixed ? '最大' : 'これまでの最大'}${c.seats}人）` : ''); }).join('、')}`,
     `## 利用者の名簿（かっこ内は、よく乗る場所）\n${people || '（まだ名簿がありません）'}`,
     `## 運転手\n${(roster.drivers || []).slice(0, 30).join('、') || '（不明）'}`,
     `## 決まりごと（毎週守ること）\n${(rules || []).length ? rules.map(r => '- ' + r).join('\n') : '（まだありません）'}`,

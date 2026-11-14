@@ -136,3 +136,17 @@ test('AI の答え：命令を取りだす。道具を使わなかった・断�
   assert.equal(readResponse({ stop_reason: 'refusal', content: [] }).ops.length, 0);
   assert.ok(readResponse({ stop_reason: 'max_tokens', content: [{ type: 'tool_use', name: TOOL.name, input: { ops: [] } }] }).questions.length);
 });
+
+test('車の最大人数：決めてあればその数、まだなら これまでの最大。超えたら知らせ、下書きにも引きつぐ', () => {
+  const w = week('2026-11-09', usual);
+  const roster = M.rosterFrom([w]);
+  assert.deepEqual(M.seatsOf(w.vans[0], roster), { seats: 2, fixed: false });
+  w.vans[1].seats = 1;
+  put(w, 1, 'v2', 'out', '藤本', '09:00');
+  const texts = M.checkWeek(w, roster).map(x => x.text);
+  assert.ok(texts.some(t => t.includes('セレナが2人です（最大1人）')));
+  const again = M.normalizeWeek(JSON.parse(JSON.stringify(w)));
+  assert.equal(again.vans[1].seats, 1);
+  assert.equal(buildDraft({ facilityId: 'funny', weekStart: '2026-11-16', history: [w] }).week.vans[1].seats, 1);
+  assert.ok(JSON.stringify(buildRequest({ week: w, roster, rules: [], instruction: 'x' })).includes('セレナ（最大1人）'));
+});
