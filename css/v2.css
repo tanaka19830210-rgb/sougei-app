@@ -33,8 +33,10 @@ input,textarea{-webkit-user-select:text;user-select:text;}
 .strip.error{background:#fde8e6;color:#a3261b;}
 .strip .x{margin-left:auto;border:none;background:none;font-size:18px;color:var(--sub);padding:2px 8px;cursor:pointer;}
 .strip i{font-style:normal;display:inline-block;padding:0 6px;border-radius:5px;margin:0 2px;}
-.strip i.restored{background:#dcebfa;}
-.strip i.onlyLast{background:#fdeebf;}
+.strip i.restored{border:2px solid #2f6fd0;background:#fff;}
+.strip i.onlyLast{border:2px dashed #c98a00;background:#fff;}
+.strip i.out{background:#ffe2b5;}
+.strip i.ret{background:#cfe2f7;}
 
 /* ---------- 表 ---------- */
 #stage{flex:1;overflow:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;padding:3px;}
@@ -60,19 +62,21 @@ input,textarea{-webkit-user-select:text;user-select:text;}
 .vanname span{writing-mode:vertical-rl;letter-spacing:.06em;font-size:.95em;white-space:nowrap;}
 
 .cell{padding:.1em .15em .15em;min-height:1.6em;}
-.cell.ret{border-bottom-color:#9aa69a !important;background:#fbfcfb;}
-.cell.alt{background:#f7fafd;}
-.cell.alt.ret{background:#f1f6fb;}
+/* 迎え＝あたたかい色（朝）、送り＝青（夕方）。車ごとに濃さを少し変えて、段の切れ目を見やすくする */
+.cell.out{background:#fff1dc;}
+.cell.out.alt{background:#ffe8c6;}
+.cell.ret{border-bottom-color:#9aa69a !important;background:#e3effb;}
+.cell.ret.alt{background:#d3e5f7;}
 .cell.over{outline:.16em solid var(--green);outline-offset:-.16em;background:var(--green-pale);}
-.cell.changed{background:#fff6d6;}
+.cell.changed{background:#fff38f !important;}
 .cell.warn .drv i{background:#d6453a;}
 
 .drv{display:flex;align-items:center;gap:.3em;font-size:.86em;color:var(--sub);cursor:pointer;line-height:1.45;}
-.drv i{font-style:normal;font-weight:700;color:#fff;background:var(--green);border-radius:.3em;padding:0 .3em;font-size:.92em;}
-.cell.ret .drv i{background:var(--blue);}
+.drv i{font-style:normal;font-weight:700;color:#fff;background:#e08a00;border-radius:.3em;padding:0 .3em;font-size:.92em;}
+.cell.ret .drv i{background:#3f7fc0;}
 .drv span{font-weight:700;color:#4a4a4a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.drv span.none{font-weight:400;color:#c3c9c3;}
-.drv .add{margin-left:auto;text-decoration:none;color:#aab3aa;font-weight:700;padding:0 .5em;font-size:1.15em;line-height:1;}
+.drv span.none{font-weight:400;color:#b5b0a6;}
+.drv .add{margin-left:auto;text-decoration:none;color:#9aa0a6;font-weight:700;padding:0 .5em;font-size:1.15em;line-height:1;}
 
 .chip{display:flex;align-items:baseline;gap:.3em;padding:0 .3em 0 .35em;margin-top:1px;border-radius:.3em;background:#fff;
   border:1px solid #dfe5df;border-left:.3em solid var(--pc,transparent);cursor:grab;white-space:nowrap;}
@@ -80,8 +84,9 @@ input,textarea{-webkit-user-select:text;user-select:text;}
 .chip .nm s{text-decoration:none;font-size:.78em;color:var(--sub);font-weight:400;}
 .chip .nm small{font-size:.8em;color:var(--sub);font-weight:400;margin-left:.25em;}
 .chip .tm{font-variant-numeric:tabular-nums;font-size:.92em;color:#444;}
-.chip.restored{background:#e6f1fc;}
-.chip.onlyLast{background:#fdf1c7;}
+/* 下書きのしるしは、背景色（迎え・送りの色）とまぎれないよう、わくで示す */
+.chip.restored{box-shadow:0 0 0 .14em #2f6fd0 inset;border-color:#2f6fd0;}
+.chip.onlyLast{box-shadow:0 0 0 .14em #c98a00 inset;border-color:#c98a00;border-style:dashed;}
 .chip.changed{background:#ffe08a;border-color:#e2b100;font-weight:700;}
 .chip.warn{border-color:#d6453a;box-shadow:0 0 0 1px #d6453a inset;}
 .chip.lifted{opacity:.25;}
@@ -161,6 +166,7 @@ body.dragging #bin{display:block;}
   .dayhead,.vanname{position:static;}
   .drv .add,.notecell p.none,.drv span.none{visibility:hidden;}
   .chip{border-color:#bbb;}
+  .chip.restored,.chip.onlyLast{box-shadow:none;border-style:solid;}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .printhead{display:block !important;font-weight:700;font-size:13pt;margin:0 0 2mm;}
 }

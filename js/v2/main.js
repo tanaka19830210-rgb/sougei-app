@@ -123,8 +123,8 @@ function draftStrip(summary) {
   if (!summary.copiedFrom) return strip('これまでの表がまだ無いので、空の表です。「⋯」から車を足して、人を入れてください。', 'warn');
   const names = list => [...new Set(list.map(x => x.name))].slice(0, 8).map(n => escapeHtml(n) + '様').join('・') + (new Set(list.map(x => x.name)).size > 8 ? ' ほか' : '');
   let html = `<b>${weekLongLabel(summary.copiedFrom)}</b> の表をもとに下書きを作りました。`;
-  if (summary.restored.length) html += ` <i class="restored">青</i>＝先週お休みだったので戻した人（${names(summary.restored)}）`;
-  if (summary.onlyLast.length) html += ` <i class="onlyLast">黄</i>＝先週だけ乗っていた人（${names(summary.onlyLast)}）`;
+  if (summary.restored.length) html += ` <i class="restored">青わく</i>＝先週お休みだったので戻した人（${names(summary.restored)}）`;
+  if (summary.onlyLast.length) html += ` <i class="onlyLast">点線わく</i>＝先週だけ乗っていた人（${names(summary.onlyLast)}）`;
   html += ' 今週の事情は「AIに伝える」でどうぞ。';
   strip(html);
 }
