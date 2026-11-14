@@ -24,7 +24,8 @@ function colorOf(place) {
   return placeColor.get(key);
 }
 
-export function createBoard({ stage, board, handlers }) {
+/* layout … 'auto'（文字が大きくなるほうを自動でえらぶ）・'wide'（迎えと送りを横に）・'tall'（たてに積む） */
+export function createBoard({ stage, board, handlers, layout = 'auto' }) {
   let scale = 1, fitScale = 1, state = null;
   /* wide＝迎えと送りを横にならべる（横長の画面むき）。tall＝たてに積む（たて長の画面むき）。
      「全体」のたびに両方ためして、文字が大きくなるほうを選ぶ。 */
@@ -108,8 +109,9 @@ export function createBoard({ stage, board, handlers }) {
 
   function fit() {
     if (state) {
-      const scores = [true, false].map(mode => { if (wide !== mode) { wide = mode; render(state); } return measureFit(); });
-      const best = scores[0] >= scores[1];
+      const modes = layout === 'wide' ? [true] : layout === 'tall' ? [false] : [true, false];
+      const scores = modes.map(mode => { if (wide !== mode) { wide = mode; render(state); } return measureFit(); });
+      const best = modes[scores.indexOf(Math.max(...scores))];
       if (wide !== best) { wide = best; render(state); }
       fitScale = Math.max(...scores);
     } else fitScale = measureFit();

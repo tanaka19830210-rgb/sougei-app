@@ -465,8 +465,10 @@ export async function start() {
   badge.className = 'badge' + (app.store.mode === 'local' ? ' local' : '');
   badge.title = app.store.label || '';
 
+  /* ならべ方を見くらべるための入口：アドレスの後ろに ?layout=tall（たて積み）か ?layout=wide（よこ並べ）を付ける */
+  const layout = new URLSearchParams(location.search).get('layout') || 'auto';
   app.board = createBoard({
-    stage: $('stage'), board: $('board'),
+    stage: $('stage'), board: $('board'), layout,
     handlers: {
       onMove: moveRider,
       onRemove: removeAt,
