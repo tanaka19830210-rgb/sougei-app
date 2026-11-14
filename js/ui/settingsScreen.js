@@ -23,13 +23,18 @@ export async function start() {
     branch: document.getElementById('branch'),
     token: document.getElementById('token'),
     editor: document.getElementById('editor'),
-    facility: document.getElementById('facility')
+    facility: document.getElementById('facility'),
+    aikey: document.getElementById('aikey')
   };
 
   form.repo.value = config.owner && config.repo ? `${config.owner}/${config.repo}` : '';
   form.branch.value = config.branch || 'main';
   form.token.value = config.token || '';
   form.editor.value = config.editorName || '';
+  form.aikey.value = config.aiKey || '';
+  document.getElementById('revealai').onclick = () => {
+    form.aikey.type = form.aikey.type === 'password' ? 'text' : 'password';
+  };
 
   const store = createStore(config);
   renderModeBadge(document.getElementById('modebadge'), store);
@@ -63,11 +68,8 @@ export async function start() {
   const fid = config.facilityId || (form.facility.value || 'funny');
   document.getElementById('pathlist').innerHTML = [
     paths.facilitiesPath(),
-    paths.usersPath(fid),
-    paths.vansPath(fid),
-    paths.ngPairsPath(fid),
-    paths.driversPath(fid),
-    paths.planPath(fid, '2026-08-03')
+    `data/${fid}/weeks/2026-11-16.json（1週＝1ファイル）`,
+    `data/${fid}/rules.json（決まりごと）`
   ].map(p => `<li><code>${escapeHtml(p)}</code></li>`).join('');
 
   /* ---------- 保存 ---------- */
@@ -83,6 +85,7 @@ export async function start() {
     next.branch = form.branch.value.trim() || 'main';
     next.token = form.token.value.trim();
     next.editorName = form.editor.value.trim();
+    next.aiKey = form.aikey.value.trim();
     next.facilityId = form.facility.value;
 
     /*

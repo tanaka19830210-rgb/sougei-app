@@ -1,0 +1,167 @@
+/* ============================================================
+   1週間を1画面で見る送迎表（v2）
+   表の中の大きさは em（文字の大きさの何倍か）だけで書く。
+   → 文字の大きさを変えると、表ぜんたいが同じ形で伸び縮みする。
+   ============================================================ */
+
+html,body{height:100%;overflow:hidden;overscroll-behavior:none;}
+body{display:flex;flex-direction:column;background:#f4f6f4;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+input,textarea{-webkit-user-select:text;user-select:text;}
+
+/* ---------- 上の帯 ---------- */
+.bar{background:var(--green);color:#fff;display:flex;align-items:center;gap:6px;padding:5px 8px;flex:none;overflow-x:auto;}
+.tb#warn{background:#d6453a;font-weight:700;}
+.bar .name{font-weight:700;font-size:16px;margin-right:2px;white-space:nowrap;}
+.bar select{font:inherit;font-size:15px;font-weight:700;border:none;border-radius:8px;padding:8px 6px;background:rgba(255,255,255,.18);color:#fff;min-height:40px;}
+.bar select option{color:#333;}
+.tb{font-family:inherit;font-size:14px;font-weight:500;border:none;border-radius:9px;padding:0 11px;min-height:40px;min-width:40px;
+  background:rgba(255,255,255,.18);color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;text-decoration:none;flex:none;}
+.tb:active{transform:translateY(1px);}
+.tb:disabled{opacity:.4;}
+.tb.solid{background:#fff;color:var(--green-dark);font-weight:700;}
+.tb.ai{background:#fff7e6;color:#8a5a00;font-weight:700;}
+.tb.dirty{background:var(--orange);color:#fff;}
+.tb svg{width:18px;height:18px;fill:currentColor;flex:none;}
+.week{font-weight:700;font-size:16px;flex:none;text-align:center;white-space:nowrap;}
+.grow{flex:1;}
+.badge{flex:none;font-size:12px;background:rgba(0,0,0,.18);border-radius:20px;padding:3px 9px;white-space:nowrap;}
+.badge.local{background:var(--orange);}
+
+.strip{flex:none;font-size:14px;padding:7px 12px;background:var(--blue-pale);border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;}
+.strip.hide{display:none;}
+.strip.warn{background:var(--orange-pale);}
+.strip.error{background:#fde8e6;color:#a3261b;}
+.strip .x{margin-left:auto;border:none;background:none;font-size:18px;color:var(--sub);padding:2px 8px;cursor:pointer;}
+.strip i{font-style:normal;display:inline-block;padding:0 6px;border-radius:5px;margin:0 2px;}
+.strip i.restored{background:#dcebfa;}
+.strip i.onlyLast{background:#fdeebf;}
+
+/* ---------- 表 ---------- */
+#stage{flex:1;overflow:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;padding:3px;}
+#board{display:grid;grid-template-columns:2.1em repeat(6,15.2em);width:max-content;font-size:13px;line-height:1.5;
+  background:#fff;border:1px solid #b9c2b9;border-radius:.4em;overflow:hidden;margin:0 auto;}
+#board.wide{grid-template-columns:2.1em repeat(12,9.7em);}
+#board.wide .cell.out{border-right-style:dotted;}
+#board.wide .cell.ret{border-right-color:#9aa69a;border-bottom-color:#d5dbd5 !important;}
+#board.wide > .cell{border-bottom-color:#9aa69a !important;}
+#board.wide .dayhead,#board.wide .notecell{border-right-color:#9aa69a;}
+#board > div{border-right:1px solid #d5dbd5;border-bottom:1px solid #d5dbd5;min-width:0;}
+
+.corner{background:#f1f4f1;}
+.dayhead{background:#f1f4f1;display:flex;align-items:baseline;gap:.4em;padding:.15em .5em;position:sticky;top:0;z-index:5;}
+.dayhead b{font-size:1.15em;}
+.dayhead span{color:var(--sub);font-size:.9em;}
+.dayhead em{margin-left:auto;font-style:normal;font-weight:700;color:var(--green-dark);}
+.dayhead em small{font-weight:400;color:var(--sub);}
+
+.vanname{display:flex;align-items:center;justify-content:center;background:#e6efe5;font-weight:700;cursor:pointer;position:sticky;left:0;z-index:4;}
+.vanname.alt{background:#dbe7f2;}
+.vanname.notes{background:#f6ecd9;cursor:default;}
+.vanname span{writing-mode:vertical-rl;letter-spacing:.06em;font-size:.95em;white-space:nowrap;}
+
+.cell{padding:.1em .15em .15em;min-height:1.6em;}
+.cell.ret{border-bottom-color:#9aa69a !important;background:#fbfcfb;}
+.cell.alt{background:#f7fafd;}
+.cell.alt.ret{background:#f1f6fb;}
+.cell.over{outline:.16em solid var(--green);outline-offset:-.16em;background:var(--green-pale);}
+.cell.changed{background:#fff6d6;}
+.cell.warn .drv i{background:#d6453a;}
+
+.drv{display:flex;align-items:center;gap:.3em;font-size:.86em;color:var(--sub);cursor:pointer;line-height:1.45;}
+.drv i{font-style:normal;font-weight:700;color:#fff;background:var(--green);border-radius:.3em;padding:0 .3em;font-size:.92em;}
+.cell.ret .drv i{background:var(--blue);}
+.drv span{font-weight:700;color:#4a4a4a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.drv span.none{font-weight:400;color:#c3c9c3;}
+.drv .add{margin-left:auto;text-decoration:none;color:#aab3aa;font-weight:700;padding:0 .5em;font-size:1.15em;line-height:1;}
+
+.chip{display:flex;align-items:baseline;gap:.3em;padding:0 .3em 0 .35em;margin-top:1px;border-radius:.3em;background:#fff;
+  border:1px solid #dfe5df;border-left:.3em solid var(--pc,transparent);cursor:grab;white-space:nowrap;}
+.chip .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
+.chip .nm s{text-decoration:none;font-size:.78em;color:var(--sub);font-weight:400;}
+.chip .nm small{font-size:.8em;color:var(--sub);font-weight:400;margin-left:.25em;}
+.chip .tm{font-variant-numeric:tabular-nums;font-size:.92em;color:#444;}
+.chip.restored{background:#e6f1fc;}
+.chip.onlyLast{background:#fdf1c7;}
+.chip.changed{background:#ffe08a;border-color:#e2b100;font-weight:700;}
+.chip.warn{border-color:#d6453a;box-shadow:0 0 0 1px #d6453a inset;}
+.chip.lifted{opacity:.25;}
+.chip.gap{margin-top:.75em;box-shadow:0 -.4em 0 -.15em var(--green);}
+.chip.fly{position:fixed;left:0;top:0;z-index:999;pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,.3);transform-origin:0 0;border-color:var(--green);background:#fff;}
+#board.locked .chip{cursor:default;}
+
+.notecell{padding:.2em .4em;font-size:.86em;line-height:1.45;cursor:pointer;background:#fffaf0;}
+.notecell p{margin:0;}
+.notecell p.none{color:#c9c2b0;}
+.notecell.changed{background:#fff0b8;}
+
+/* ---------- はずす所（ひっぱっている間だけ出る） ---------- */
+#bin{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#fff;border:2px dashed #d6453a;color:#d6453a;font-weight:700;
+  border-radius:14px;padding:14px 34px;font-size:16px;display:none;z-index:500;box-shadow:0 4px 14px rgba(0,0,0,.15);}
+body.dragging #bin{display:block;}
+#bin.over{background:#d6453a;color:#fff;}
+
+/* ---------- AI の確認の帯 ---------- */
+#confirm{flex:none;background:#fff7e0;border-top:2px solid var(--orange);padding:9px 12px;display:none;gap:12px;align-items:flex-start;max-height:42vh;overflow:auto;}
+#confirm.show{display:flex;}
+#confirm .body{flex:1;font-size:14.5px;line-height:1.6;}
+#confirm .heard{color:var(--sub);font-size:13px;margin-bottom:3px;}
+#confirm ul{margin:0;padding-left:1.2em;}
+#confirm .q{color:#a3261b;}
+#confirm .acts{display:flex;flex-direction:column;gap:7px;flex:none;}
+.btn2{font-family:inherit;font-size:16px;font-weight:700;border:none;border-radius:10px;padding:0 20px;min-height:46px;cursor:pointer;background:#e8ece8;color:#333;}
+.btn2.go{background:var(--green);color:#fff;}
+.btn2.danger{background:#fff;color:#d6453a;border:2px solid #d6453a;}
+.btn2:disabled{opacity:.45;}
+
+/* ---------- 下から出る入力らん（AI・編集） ---------- */
+.shade{position:fixed;inset:0;background:rgba(0,0,0,.28);display:none;z-index:600;align-items:flex-end;justify-content:center;}
+.shade.show{display:flex;}
+.shade.mid{align-items:center;}
+.sheet{background:#fff;border-radius:16px 16px 0 0;padding:16px 18px 18px;width:min(720px,100%);max-height:88vh;overflow:auto;box-shadow:0 -6px 24px rgba(0,0,0,.2);}
+.shade.mid .sheet{border-radius:16px;width:min(460px,94%);}
+.sheet h3{margin:0 0 10px;font-size:18px;}
+.sheet p.lead{margin:0 0 10px;font-size:14px;color:var(--sub);line-height:1.6;}
+.sheet label{display:block;font-size:13px;color:var(--sub);margin:10px 0 3px;}
+.sheet input[type=text],.sheet input[type=time],.sheet textarea{width:100%;font:inherit;font-size:18px;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:#fff;}
+.sheet textarea{min-height:130px;line-height:1.6;resize:vertical;}
+.sheet .row{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap;}
+.sheet .row .grow{flex:1;}
+.quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+.quick button{font:inherit;font-size:14px;border:1px solid var(--line);background:#f4f6f4;border-radius:20px;padding:6px 12px;cursor:pointer;}
+.mic{width:76px;height:76px;border-radius:50%;border:none;background:var(--green);color:#fff;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;}
+.mic svg{width:34px;height:34px;fill:#fff;}
+.mic.on{background:#d6453a;animation:pulse 1.2s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(214,69,58,.5);}100%{box-shadow:0 0 0 18px rgba(214,69,58,0);}}
+.talk{display:flex;gap:14px;align-items:center;}
+.talk .hint{font-size:14px;color:var(--sub);line-height:1.6;}
+.keep{display:flex !important;gap:8px;align-items:flex-start;background:#fff7e6;border:2px solid var(--orange);border-radius:10px;padding:10px 12px;font-size:15px !important;color:var(--text) !important;line-height:1.5;cursor:pointer;}
+.keep input{width:24px;height:24px;flex:none;margin:1px 0 0;}
+.keep span{color:var(--sub);font-size:13px;}
+#confirm li.rule{background:#ffe9b0;border-radius:6px;padding:2px 6px;list-style:'★ ';}
+.interim{color:#999;font-size:15px;min-height:1.4em;margin-top:4px;}
+.busy{display:none;align-items:center;gap:10px;font-size:15px;color:var(--sub);margin-top:12px;}
+.busy.show{display:flex;}
+.busy::before{content:'';width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.menu a,.menu button{display:block;width:100%;text-align:left;font:inherit;font-size:17px;padding:14px 8px;border:none;border-bottom:1px solid var(--line);background:none;color:var(--text);text-decoration:none;cursor:pointer;}
+.warnlist{margin:0;padding-left:1.2em;font-size:15px;line-height:1.8;}
+
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:#333;color:#fff;padding:12px 20px;border-radius:12px;font-size:15px;opacity:0;pointer-events:none;transition:.25s;z-index:900;max-width:90vw;}
+#toast.show{opacity:1;transform:translateX(-50%);}
+#toast.error{background:#a3261b;}
+#toast.warn{background:#9a6a00;}
+
+/* ---------- 印刷（A4よこ1枚に収める） ---------- */
+@page{size:A4 landscape;margin:7mm;}
+@media print{
+  html,body{height:auto;overflow:visible;background:#fff;}
+  .bar,.strip,#confirm,.shade,#bin,#toast{display:none !important;}
+  #stage{overflow:visible;padding:0;}
+  #board{margin:0;border-radius:0;}
+  .dayhead,.vanname{position:static;}
+  .drv .add,.notecell p.none,.drv span.none{visibility:hidden;}
+  .chip{border-color:#bbb;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .printhead{display:block !important;font-weight:700;font-size:13pt;margin:0 0 2mm;}
+}
+.printhead{display:none;}

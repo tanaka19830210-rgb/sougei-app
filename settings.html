@@ -19,8 +19,7 @@
   </div>
   <span class="modebadge" id="modebadge"></span>
   <div class="spacer"></div>
-  <a class="btn outline" href="index.html">割り当て画面へ</a>
-  <a class="btn outline" href="masters.html">マスタ編集へ</a>
+  <a class="btn outline" href="index.html">送迎表へ</a>
 </header>
 
 <div class="banner hide" id="banner"></div>
@@ -75,6 +74,23 @@
       <button class="btn go" id="save" type="button">この端末に保存する</button>
       <button class="btn plain" id="check" type="button">つながるか試す</button>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>AI に伝える（声や文字で今週の事情を伝える機能）</h2>
+    <p class="lead">
+      Anthropic（Claude）の APIキーを入れると、送迎表の画面の「AIに伝える」が使えます。
+      伝えた言葉と、その週の送迎表（利用者の名字・乗る場所・運転手）が Anthropic へ送られます。
+      API で送った内容は AI の学習には使われません。料金は使ったぶんだけ Anthropic から請求されます。
+    </p>
+    <div class="field row2">
+      <div>
+        <label for="aikey">APIキー</label>
+        <input id="aikey" type="password" placeholder="sk-ant- ではじまる文字" autocapitalize="off" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="btn plain" id="revealai" type="button">見る</button>
+    </div>
+    <p class="hint">GitHub のトークンと同じく、この端末のブラウザにだけ覚えます。共用の端末には入れないでください。上の「この端末に保存する」で一緒に保存されます。</p>
   </div>
 
   <div class="card">
