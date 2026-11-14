@@ -299,6 +299,7 @@ function vanSheet(vanId) {
 
 /* ---------- AI に伝える ---------- */
 let voice = null;
+const CHECK_TEXT = 'この週の表ぜんたいを点検してください。表は変えずに、矛盾している所・決まりごとに反している所・気になる所を教えてください。';
 
 function aiSheet(prefill = '') {
   const canHear = voiceSupported();
@@ -316,6 +317,7 @@ function aiSheet(prefill = '') {
     <div class="busy" id="busy">AI が表を見ています…（10〜40秒ほど）</div>
     <div class="row">
       <button class="btn2" id="f-rules" type="button">覚えている決まりごと（${app.rules.length}）</button>
+      <button class="btn2" id="f-check" type="button">AIに表を点検してもらう</button>
       <div class="grow"></div>
       <button class="btn2" id="f-cancel" type="button">とじる</button>
       <button class="btn2 go" id="f-send" type="button">伝える</button>
@@ -334,6 +336,7 @@ function aiSheet(prefill = '') {
   }
   $('f-cancel').onclick = () => { stopVoice(); closeSheet(); };
   $('f-rules').onclick = () => { stopVoice(); rulesSheet(); };
+  $('f-check').onclick = () => { $('f-say').value = CHECK_TEXT; $('f-keep').checked = false; $('f-send').click(); };
   $('f-send').onclick = async () => {
     stopVoice();
     let text = $('f-say').value.trim();
@@ -374,7 +377,7 @@ function showAnswer(said, answer) {
   $('confirmbody').innerHTML = `
     ${answer.heard ? `<div class="heard">聞き取った内容：${escapeHtml(answer.heard)}</div>` : ''}
     ${items || rules ? `<ul>${items}${rules}</ul>` : ''}
-    ${qs ? `<div class="q" style="margin-top:4px;"><b>たしかめたいこと</b><ul>${qs}</ul></div>` : ''}
+    ${qs ? `<div class="q" style="margin-top:4px;"><b>${said === CHECK_TEXT ? 'AI が気づいたこと' : 'たしかめたいこと'}</b><ul>${qs}</ul></div>` : ''}
     ${nothing && !qs ? '変える所はありませんでした。' : ''}`;
   $('accept').hidden = nothing;
   $('reject').textContent = nothing ? 'とじる' : 'やめる';
@@ -392,7 +395,7 @@ function showAnswer(said, answer) {
     app.preview = null;
     $('confirm').classList.remove('show');
     draw();
-    if (!nothing || qs) aiSheet(said);
+    if (said !== CHECK_TEXT && (!nothing || qs)) aiSheet(said);
   };
   draw();
   app.board.fit();
