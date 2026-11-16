@@ -150,6 +150,8 @@ export function rosterFrom(weeks) {
   }));
   return {
     people: [...people.values()]
+      /* 「A→B」「○○様の車いす」のような書きこみは、人の名前ではないので名簿に入れない */
+      .filter(p => !/[→⇒＞>\/様]/.test(p.name) && p.name.length <= 6)
       .map(p => ({ name: p.name, places: [...p.places.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]) }))
       .sort((a, b) => a.name.localeCompare(b.name, 'ja')),
     drivers: [...drivers.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]),

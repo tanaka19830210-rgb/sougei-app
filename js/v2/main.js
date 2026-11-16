@@ -23,6 +23,9 @@ const $ = id => document.getElementById(id);
 const weekPath = (fid, key) => `data/${fid}/weeks/${key}.json`;
 const rulesPath = fid => `data/${fid}/rules.json`;
 const HISTORY_WEEKS = 8;
+/* 日曜にひらいたときは、翌日からの週を「今週」とする（currentWeekKey の決まり） */
+const thisWeek = () => currentWeekKey();
+const nextWeek = () => shiftWeekKey(currentWeekKey(), 1);
 
 const app = {
   config: null, store: null, facilities: [], facility: null,
@@ -75,7 +78,10 @@ function draw() {
   const showing = app.preview ? app.preview.week : app.week;
   const warnings = M.checkWeek(showing, app.roster);
   app.board.render({ week: showing, warnings, changes: app.preview ? app.preview.changes : [], locked: !!app.preview, roster: app.roster });
-  $('weeklabel').textContent = weekShortLabel(app.weekKey) + 'の週';
+  $('weeklabel').textContent = weekShortLabel(app.weekKey);
+  /* 作るのは今週と来週だけ。どちらを開いているかを、ボタンの色で示す */
+  $('prev').classList.toggle('solid', app.weekKey === thisWeek());
+  $('next').classList.toggle('solid', app.weekKey === nextWeek());
   $('printhead').textContent = `${app.facility.printTitle || app.facility.name}　${weekLongLabel(app.weekKey)}`;
   $('undo').disabled = !app.undo.length || !!app.preview;
   $('save').classList.toggle('dirty', app.dirty);
@@ -189,12 +195,18 @@ function riderSheet(pos, isNew) {
   const row = isNew ? { name: '', place: '', time: '' } : trip.rows[pos.index];
   const van = app.week.vans.find(v => v.id === pos.vanId);
   const person = app.roster.people.find(p => p.name === M.personKey(row.name));
+  /* 名簿の人を、押すだけで入れられるボタンにする。この便にまだ乗っていない人を先にならべる */
+  const ridingNow = new Set();
+  app.week.vans.forEach(v => app.week.days[pos.day].trips[v.id][pos.leg].rows.forEach(r => ridingNow.add(M.personKey(r.name))));
+  const people = app.roster.people.map(p => ({ ...p, riding: ridingNow.has(p.name) && p.name !== M.personKey(row.name) }))
+    .sort((a, b) => a.riding - b.riding);
   const places = [...new Set([...(person ? person.places : []), '自宅', ...app.roster.people.flatMap(p => p.places)])].filter(Boolean).slice(0, 10);
   const sheet = openSheet(`
     <h3>${M.DAY_NAMES[pos.day]}曜・${escapeHtml(van.name)}・${M.LEG_NAMES[pos.leg]}${isNew ? ' に人を足す' : ''}</h3>
-    <label>お名前（名字）</label>
-    <input type="text" id="f-name" list="dl-people" value="${escapeHtml(row.name)}" autocomplete="off">
-    <datalist id="dl-people">${app.roster.people.map(p => `<option value="${escapeHtml(p.name)}">`).join('')}</datalist>
+    <label>利用者名</label>
+    <input type="text" id="f-name" value="${escapeHtml(row.name)}" autocomplete="off">
+    <div class="quick people">${people.map(p => `<button type="button" data-person="${escapeHtml(p.name)}" class="${p.riding ? 'riding' : ''}">${escapeHtml(p.name)}</button>`).join('')}</div>
+    ${people.some(p => p.riding) ? '<p class="mini">うすい色の方は、この便ですでにどこかの車に乗っています。</p>' : ''}
     <label>乗る場所（自宅なら空でよい）</label>
     <input type="text" id="f-place" value="${escapeHtml(row.place)}" autocomplete="off">
     <div class="quick">${places.map(p => `<button type="button" data-place="${escapeHtml(p)}">${escapeHtml(p)}</button>`).join('')}</div>
@@ -207,11 +219,18 @@ function riderSheet(pos, isNew) {
       <button class="btn2 go" id="f-ok" type="button">決定</button>
     </div>`, { middle: true });
   sheet.querySelectorAll('[data-place]').forEach(b => { b.onclick = () => { $('f-place').value = b.dataset.place === '自宅' && !row.place ? '自宅' : b.dataset.place; }; });
+  sheet.querySelectorAll('[data-person]').forEach(b => { b.onclick = () => {
+    $('f-name').value = b.dataset.person;
+    /* 乗る場所がまだ空なら、その人がいちばんよく乗る場所を入れておく（あとで直せる） */
+    const p = app.roster.people.find(x => x.name === b.dataset.person);
+    if (isNew && p && !$('f-place').value) $('f-place').value = p.places[0] || '';
+    sheet.querySelectorAll('[data-person]').forEach(x => x.classList.toggle('on', x === b));
+  }; });
   $('f-cancel').onclick = closeSheet;
   if (!isNew) $('f-del').onclick = () => { closeSheet(); removeAt(pos); };
   $('f-ok').onclick = () => {
     const name = M.personKey($('f-name').value);
-    if (!name) { toast('お名前を入れてください', 'warn'); return; }
+    if (!name) { toast('利用者名を入れてください', 'warn'); return; }
     const next = M.clone(app.week);
     const rows = next.days[pos.day].trips[pos.vanId][pos.leg].rows;
     const value = { name, place: $('f-place').value.trim(), time: M.normTime($('f-time').value) };
@@ -222,7 +241,7 @@ function riderSheet(pos, isNew) {
     closeSheet();
     commit(next);
   };
-  if (isNew) $('f-name').focus();
+
 }
 
 function removeAt(pos) {
@@ -504,8 +523,8 @@ export async function start() {
     try { app.config = saveConfig({ ...app.config, facilityId: app.facility.id }); } catch (e) { /* 覚えられなくても動く */ }
     openWeek(app.weekKey);
   };
-  $('prev').onclick = async () => { if (await leaveOk()) openWeek(shiftWeekKey(app.weekKey, -1)); };
-  $('next').onclick = async () => { if (await leaveOk()) openWeek(shiftWeekKey(app.weekKey, 1)); };
+  $('prev').onclick = async () => { if (app.weekKey !== thisWeek() && await leaveOk()) openWeek(thisWeek()); };
+  $('next').onclick = async () => { if (app.weekKey !== nextWeek() && await leaveOk()) openWeek(nextWeek()); };
   $('undo').onclick = () => { if (app.undo.length) { app.week = app.undo.pop(); app.dirty = true; draw(); } };
   $('save').onclick = save;
   $('zin').onclick = () => app.board.zoom(1.25);
@@ -527,5 +546,5 @@ export async function start() {
   window.addEventListener('orientationchange', () => setTimeout(() => app.board.fit(), 250));
   window.addEventListener('beforeunload', e => { if (app.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
-  await openWeek(currentWeekKey());
+  await openWeek(thisWeek());
 }
