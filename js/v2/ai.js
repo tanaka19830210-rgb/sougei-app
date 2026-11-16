@@ -129,31 +129,46 @@ export function readResponse(json) {
   return { heard: String(input.heard || ''), summary: list(input.summary).map(String), questions, ops, usage: json.usage || null };
 }
 
-export async function askAi({ apiKey, fetchImpl, ...rest }) {
-  if (!apiKey) throw new Error('AI の鍵（APIキー）がまだ入っていません。設定画面で入れてください。');
-  const doFetch = fetchImpl || fetch;
-  let res;
-  try {
-    res = await doFetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify(buildRequest(rest))
-    });
-  } catch (e) {
-    throw new Error('AI につながりませんでした。ネットの接続を確かめてください。');
+/*
+  AI に頼む。
+    apiKey … この端末に鍵があるときは、Anthropic へ直接たのむ
+    gate   … Google ログインで使うときは、番人に代わりにたのんでもらう（鍵は番人の中にだけある）
+             (request) => Promise<{ status, body }>
+*/
+export async function askAi({ apiKey, gate, fetchImpl, ...rest }) {
+  if (!apiKey && !gate) throw new Error('AI の鍵（APIキー）がまだ入っていません。設定画面で入れてください。');
+  const request = buildRequest(rest);
+  let status, json;
+  if (apiKey) {
+    const doFetch = fetchImpl || fetch;
+    let res;
+    try {
+      res = await doFetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify(request)
+      });
+    } catch (e) {
+      throw new Error('AI につながりませんでした。ネットの接続を確かめてください。');
+    }
+    status = res.status;
+    try { json = await res.json(); } catch (e) { json = null; }
+  } else {
+    const out = await gate(request);
+    status = Number(out && out.status) || 0;
+    json = out ? out.body : null;
   }
-  if (!res.ok) {
-    let detail = '';
-    try { detail = (await res.json()).error.message || ''; } catch (e) { /* 読めなくてもよい */ }
-    if (res.status === 401) throw new Error('AI の鍵（APIキー）が正しくないようです。設定画面で入れなおしてください。');
-    if (res.status === 429) throw new Error('AI がこみあっています。1分ほど待ってからもう一度おねがいします。');
-    if (res.status >= 500) throw new Error('AI の側で不具合が起きています。少し待ってからもう一度おねがいします。');
-    throw new Error(`AI に頼めませんでした（${res.status}）${detail ? '：' + detail : ''}`);
+  if (status < 200 || status >= 300) {
+    const detail = (json && json.error && json.error.message) || '';
+    if (status === 401) throw new Error(apiKey ? 'AI の鍵（APIキー）が正しくないようです。設定画面で入れなおしてください。' : '番人に入れた AI の鍵（ANTHROPIC_API_KEY）が正しくないようです。');
+    if (status === 429) throw new Error('AI がこみあっています。1分ほど待ってからもう一度おねがいします。');
+    if (status >= 500) throw new Error('AI の側で不具合が起きています。少し待ってからもう一度おねがいします。');
+    throw new Error(`AI に頼めませんでした（${status}）${detail ? '：' + detail : ''}`);
   }
-  return readResponse(await res.json());
+  return readResponse(json || {});
 }
