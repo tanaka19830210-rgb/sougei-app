@@ -8,8 +8,10 @@
    4. 「保存」
    ============================================================ */
 
-import { loadConfig, saveConfig } from '../config.js';
+import { loadConfig, saveConfig, isGithubReady } from '../config.js';
+import { GATE, loadGateSession, saveGateSession, clearGateSession } from '../gate-config.js';
 import { createStore } from '../store/index.js';
+import { callGate } from '../store/gateStore.js';
 import { createRepository } from '../store/repository.js';
 import { currentWeekKey, shiftWeekKey, weekLongLabel, weekShortLabel } from '../core/dates.js';
 import { escapeHtml } from '../core/html.js';
@@ -33,7 +35,7 @@ const app = {
   config: null, store: null, facilities: [], facility: null,
   weekKey: '', week: null, exists: false, dirty: false,
   warnings: [], attendance: null, history: [], roster: { people: [], drivers: [], capacity: {} },
-  rules: [], undo: [], preview: null, shas: new Map(), board: null
+  rules: [], undo: [], preview: null, shas: new Map(), board: null, gate: null
 };
 
 /* ---------- 小さな道具 ---------- */
@@ -199,6 +201,7 @@ async function openWeek(key) {
     app.board.fit();
   } catch (e) {
     console.error(e);
+    if (loginAgainIfNeeded(e)) return;
     app.week = app.week || M.createEmptyWeek({ facilityId: app.facility.id, weekStart: key });
     draw();
     strip(escapeHtml(e.message || String(e)), 'error');
@@ -212,7 +215,7 @@ async function leaveOk() {
 
 /* ---------- 保存 ---------- */
 async function save() {
-  const data = { ...app.week, schemaVersion: M.SCHEMA_VERSION, facilityId: app.facility.id, weekStart: app.weekKey, updatedAt: new Date().toISOString(), updatedBy: app.config.editorName || '' };
+  const data = { ...app.week, schemaVersion: M.SCHEMA_VERSION, facilityId: app.facility.id, weekStart: app.weekKey, updatedAt: new Date().toISOString(), updatedBy: app.config.editorName || (app.gate ? app.gate.email : '') };
   $('save').disabled = true;
   try {
     await writeFile(weekPath(app.facility.id, app.weekKey), data, `送迎表 ${app.facility.shortName || app.facility.name} ${app.weekKey}週 を更新`);
@@ -220,6 +223,7 @@ async function save() {
     toast(app.store.mode === 'local' ? 'この端末の中に保存しました（お試しモード）' : '保存しました');
   } catch (e) {
     console.error(e);
+    if (e.name === 'AuthError' && app.store.mode === 'gate') { toast('ログインの期限が切れました。この画面のまま、別のタブでログインしなおしてから、もう一度「保存する」を押してください', 'error'); draw(); return; }
     toast(e.name === 'ConflictError' ? 'ほかの人が先に保存しています。開きなおしてから直してください。' : '保存できませんでした：' + (e.message || e), 'error');
   }
   draw();
@@ -507,6 +511,7 @@ function menuSheet() {
     <button type="button" data-a="clear">この週を空にする</button>
     <a href="settings.html">設定（保存先・AI の鍵）</a>
     <a href="v1.html">前の画面（旧アプリ）を開く</a>
+    ${app.gate ? `<button type="button" data-a="logout">ログアウト（${escapeHtml(app.gate.email || '')}）</button>` : ''}
     </div><div class="row"><div class="grow"></div><button class="btn2" data-a="close" type="button">とじる</button></div>`, { middle: true });
   sheet.onclick = e => {
     const a = e.target.closest('[data-a]');
@@ -515,6 +520,11 @@ function menuSheet() {
     if (a.dataset.a === 'print') printWeek();
     if (a.dataset.a === 'fit') fitToAttendance();
     if (a.dataset.a === 'redraft') redraft();
+    if (a.dataset.a === 'logout' && (!app.dirty || window.confirm('まだ保存していない変更があります。保存せずにログアウトしますか？'))) {
+      app.dirty = false;
+      clearGateSession();
+      location.reload();
+    }
     if (a.dataset.a === 'van') vanSheet(null);
     if (a.dataset.a === 'rules') rulesSheet();
     if (a.dataset.a === 'clear' && window.confirm('この週の人・運転手・連絡をぜんぶ消します。よろしいですか？（「戻す」で元にもどせます）')) {
@@ -543,10 +553,55 @@ function printWeek() {
   window.print();
 }
 
+/* ---------- Google ログイン（番人を使うとき） ---------- */
+/* ログインの画面を出す。ログインできたら、しるしを覚えて開きなおす */
+function showLogin(message) {
+  $('login').hidden = false;
+  $('loginerr').textContent = message || '';
+  const onCredential = async response => {
+    $('loginerr').textContent = 'ログインを確かめています…';
+    try {
+      const out = await callGate(GATE.url, { action: 'login', idToken: response.credential }, fetch.bind(globalThis));
+      saveGateSession({ session: out.session, email: out.email, facilities: out.facilities, exp: out.exp });
+      location.reload();
+    } catch (e) {
+      console.error(e);
+      $('loginerr').textContent = e.message || String(e);
+    }
+  };
+  const ready = () => {
+    window.google.accounts.id.initialize({ client_id: GATE.googleClientId, callback: onCredential, auto_select: true, ux_mode: 'popup' });
+    window.google.accounts.id.renderButton($('gbutton'), { theme: 'outline', size: 'large', text: 'signin_with', locale: 'ja', width: 280 });
+  };
+  if (window.google && window.google.accounts) { ready(); return; }
+  const tag = document.createElement('script');
+  tag.src = 'https://accounts.google.com/gsi/client';
+  tag.async = true;
+  tag.onload = ready;
+  tag.onerror = () => { $('loginerr').textContent = 'Google のログイン画面を読みこめませんでした。インターネットの接続を確かめてください。'; };
+  document.head.appendChild(tag);
+}
+
+/* 番人に「ログインしなおして」と言われたら、ログインの画面へもどす */
+function loginAgainIfNeeded(e) {
+  if (!(e && e.name === 'AuthError' && app.store && app.store.mode === 'gate')) return false;
+  clearGateSession();
+  showLogin(e.message || 'もう一度ログインしてください');
+  return true;
+}
+
 /* ---------- はじめに ---------- */
 export async function start() {
   app.config = loadConfig();
-  app.store = createStore(app.config);
+  /* 番人のつなぎ先があり、この端末に GitHub の鍵が無ければ、Google ログインで開く。
+     アドレスの後ろに ?otameshi=1 を付けると、ログインせずに見本のデータで試せる */
+  const trial = new URLSearchParams(location.search).get('otameshi') === '1';
+  const useGate = !!GATE.url && !isGithubReady(app.config) && !trial;
+  if (useGate) {
+    app.gate = loadGateSession();
+    if (!app.gate) { showLogin(''); return; }
+  }
+  app.store = createStore(app.config, { gate: useGate ? { url: GATE.url, session: app.gate.session } : null });
   const badge = $('modebadge');
   /* 本番のときは何も出さない。お試しモードのときだけ、見本のデータだと分かるよう札を出す */
   badge.textContent = app.store.mode === 'local' ? 'お試し' : '';
@@ -573,6 +628,7 @@ export async function start() {
   try {
     app.facilities = await createRepository(app.store).loadFacilities();
   } catch (e) {
+    if (loginAgainIfNeeded(e)) return;
     strip(escapeHtml(e.message || String(e)), 'error');
     return;
   }
@@ -580,6 +636,9 @@ export async function start() {
   app.facility = app.facilities.find(f => f.id === app.config.facilityId) || app.facilities[0];
   $('facility').innerHTML = app.facilities.map(f => `<option value="${escapeHtml(f.id)}">${escapeHtml(f.shortName || f.name)}</option>`).join('');
   $('facility').value = app.facility.id;
+  /* 見られる事業所が1つだけなら、切りかえを出さずに名前だけにする */
+  $('facility').classList.toggle('fixed', app.facilities.length === 1);
+  $('facility').tabIndex = app.facilities.length === 1 ? -1 : 0;
 
   $('facility').onchange = async () => {
     if (!(await leaveOk())) { $('facility').value = app.facility.id; return; }

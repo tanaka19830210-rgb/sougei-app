@@ -49,6 +49,16 @@
 <div class="shade" id="shade"><div class="sheet" id="sheet"></div></div>
 <div id="toast"></div>
 
+<div id="login" hidden>
+  <div class="logincard">
+    <h1>送迎表</h1>
+    <p>事業所の Google アカウントでログインしてください。</p>
+    <div id="gbutton"></div>
+    <p class="loginerr" id="loginerr"></p>
+    <a href="?otameshi=1">ログインせずに、見本のデータで試す</a>
+  </div>
+</div>
+
 <script type="module">
   import { start } from './js/v2/main.js';
   start();
