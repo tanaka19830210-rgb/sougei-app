@@ -66,6 +66,10 @@ function makeGate({ access, files = {}, tokens = {} } = {}) {
           const info = tokens[decodeURIComponent(url.split('id_token=')[1])];
           return info ? response(200, info) : response(400, {});
         }
+        if (url === 'https://api.anthropic.com/v1/messages') {
+          log.push({ ...params, url });
+          return response(200, { content: [{ type: 'tool_use', name: 'x', input: {} }], stop_reason: 'tool_use' });
+        }
         return github({ ...params, url });
       },
       fetchAll: reqs => reqs.map(github)
@@ -230,4 +234,22 @@ test('番人：LINE WORKS へ送る頼みごとは、自分の事業所のぶん
   assert.equal(gate.post({ action: 'write', session: out.session, path: 'publish-requests/funny-2026-11-16-20261116T120001.json', text: JSON.stringify({ ...req, facilityId: 'hitoiki' }) }).error, 'forbidden');
   assert.equal(gate.post({ action: 'write', session: out.session, path: 'publish-requests/funny-2026-11-16-20261116T120002.json', text: JSON.stringify({ ...req, weekStart: '2026-11-23' }) }).error, 'forbidden');
   assert.equal(gate.post({ action: 'write', session: out.session, path: 'publish-requests/done/funny-2026-11-16-20261116T120000.json', text: JSON.stringify(req) }).error, 'forbidden');
+});
+
+test('番人：AI に代わりにたのむ。鍵が無ければ断る。ログインしていなければ通さない', () => {
+  const { gate, out } = loggedIn('funny@example.com');
+  const request = { model: 'claude-opus-5-5', max_tokens: 99999, stream: true, messages: [{ role: 'user', content: 'こんにちは' }] };
+  assert.equal(gate.post({ action: 'ai', session: out.session, request }).message, '番人に AI の鍵（ANTHROPIC_API_KEY）がまだ入っていません');
+  gate.props.ANTHROPIC_API_KEY = 'sk-dummy';
+  const res = gate.post({ action: 'ai', session: out.session, request });
+  assert.equal(res.ok, true);
+  assert.equal(res.status, 200);
+  assert.equal(res.body.stop_reason, 'tool_use');
+  const sent = gate.log[gate.log.length - 1];
+  assert.equal(sent.headers['x-api-key'], 'sk-dummy');
+  const body = JSON.parse(sent.payload);
+  assert.equal(body.max_tokens, 16000);
+  assert.equal(body.stream, undefined);
+  assert.equal(gate.post({ action: 'ai', session: 'にせもの', request }).error, 'auth');
+  assert.equal(gate.post({ action: 'ai', session: out.session, request: { messages: 'x' } }).error, 'error');
 });

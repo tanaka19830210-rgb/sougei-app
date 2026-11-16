@@ -13,6 +13,7 @@
      GITHUB_BRANCH     … ふつうは main（空なら main）
      GOOGLE_CLIENT_ID  … Google ログインのクライアント ID
      SESSION_SECRET    … 長いでたらめな文字（ログインのしるしに署名する）
+     ANTHROPIC_API_KEY … 「AIに伝える」で使う Anthropic の鍵（無ければ AI は使えない）
      ACCESS            … だれがどの事業所を見てよいか。JSON で書く
                          例：{"a@example.com":["funny"],"b@example.com":"*"}
                          "*" は全事業所。メールアドレスは小文字で
@@ -76,6 +77,7 @@ function handle_(req) {
   if (req.action === 'whoami') return { ok: true, email: who.email, facilities: who.facilities };
   if (req.action === 'read') return read_(who, req.paths);
   if (req.action === 'write') return write_(who, req);
+  if (req.action === 'ai') return ai_(who, req);
   throw fail_('error', '知らない頼みごとです');
 }
 
@@ -144,6 +146,27 @@ function whoIs_(session) {
   var facilities = accessOf_(String(payload.e));
   if (!facilities) throw fail_('forbidden', 'この Google アカウントは登録されていません');
   return { email: String(payload.e), facilities: facilities };
+}
+
+/* ---------- AI（Anthropic）に代わりにたのむ ---------- */
+var AI_MAX_TOKENS = 16000;
+function ai_(who, req) {
+  var key = prop_('ANTHROPIC_API_KEY');
+  if (!key) throw fail_('error', '番人に AI の鍵（ANTHROPIC_API_KEY）がまだ入っていません');
+  var body = req.request;
+  if (!body || typeof body !== 'object' || !Array.isArray(body.messages) || !body.model) throw fail_('error', 'AI への頼みごとが読めません');
+  body.max_tokens = Math.min(Number(body.max_tokens) || 4000, AI_MAX_TOKENS);
+  delete body.stream;
+  var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  });
+  var json = null;
+  try { json = JSON.parse(res.getContentText()); } catch (e) { json = null; }
+  return { ok: true, status: res.getResponseCode(), body: json };
 }
 
 /* ---------- 読んでよい・書いてよいファイルか ---------- */

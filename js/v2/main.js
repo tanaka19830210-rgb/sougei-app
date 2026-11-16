@@ -419,11 +419,11 @@ function aiSheet(prefill = '') {
     let text = $('f-say').value.trim();
     if (text && $('f-keep').checked) text = '【毎週の送迎ルール】' + text;
     if (!text) { toast('伝える内容を入れてください', 'warn'); return; }
-    if (!app.config.aiKey) { needKey(); return; }
+    if (!app.config.aiKey && !app.gate) { needKey(); return; }
     $('busy').classList.add('show'); $('f-send').disabled = true;
     try {
       const answer = await askAi({
-        apiKey: app.config.aiKey, week: app.week, roster: app.roster, rules: app.rules, instruction: text,
+        apiKey: app.config.aiKey, gate: app.gate && !app.config.aiKey ? askGateAi : null, week: app.week, roster: app.roster, rules: app.rules, instruction: text,
         weekLabel: weekLongLabel(app.weekKey), pastInstructions: (app.week.log || []).map(l => l.text), warnings: app.warnings, attendance: attendanceToText(app.attendance)
       });
       closeSheet();
@@ -434,6 +434,16 @@ function aiSheet(prefill = '') {
       toast(e.message || String(e), 'error');
     }
   };
+}
+
+/* 番人に AI を頼む（鍵は番人の中にだけある） */
+async function askGateAi(request) {
+  try {
+    return await callGate(GATE.url, { action: 'ai', session: app.gate.session, request }, fetch.bind(globalThis));
+  } catch (e) {
+    if (e && e.name === 'NetworkError') throw new Error('AI につながりませんでした。ネットの接続を確かめてください。');
+    throw e;
+  }
 }
 
 function needKey() {
