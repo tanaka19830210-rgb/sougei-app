@@ -154,17 +154,11 @@ body.dragging #bin{display:block;}
 .quick button.riding{opacity:.42;}
 .quick button.on{background:var(--green);color:#fff;border-color:var(--green);}
 .sheet p.mini{margin:4px 0 0;font-size:12px;color:var(--sub);}
-.mic{width:76px;height:76px;border-radius:50%;border:none;background:var(--green);color:#fff;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;}
-.mic svg{width:34px;height:34px;fill:#fff;}
-.mic.on{background:#d6453a;animation:pulse 1.2s infinite;}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(214,69,58,.5);}100%{box-shadow:0 0 0 18px rgba(214,69,58,0);}}
-.talk{display:flex;gap:14px;align-items:center;}
-.talk .hint{font-size:14px;color:var(--sub);line-height:1.6;}
+.sheet textarea.say{min-height:220px;margin-top:4px;margin-bottom:12px;}
 .keep{display:flex !important;gap:8px;align-items:flex-start;background:#fff7e6;border:2px solid var(--orange);border-radius:10px;padding:10px 12px;font-size:15px !important;color:var(--text) !important;line-height:1.5;cursor:pointer;}
 .keep input{width:24px;height:24px;flex:none;margin:1px 0 0;}
 .keep span{color:var(--sub);font-size:13px;}
 #confirm li.rule{background:#ffe9b0;border-radius:6px;padding:2px 6px;list-style:'★ ';}
-.interim{color:#999;font-size:15px;min-height:1.4em;margin-top:4px;}
 .busy{display:none;align-items:center;gap:10px;font-size:15px;color:var(--sub);margin-top:12px;}
 .busy.show{display:flex;}
 .busy::before{content:'';width:20px;height:20px;border:3px solid var(--line);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;}
