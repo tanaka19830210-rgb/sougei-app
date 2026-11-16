@@ -218,3 +218,16 @@ test('ログインのしるし：期限が切れたら使わない', () => {
   clearGateSession(storage);
   assert.equal(loadGateSession(storage, 1000), null);
 });
+
+test('番人：LINE WORKS へ送る頼みごとは、自分の事業所のぶんだけ置ける（読めない）', () => {
+  const { gate, out } = loggedIn('funny@example.com');
+  const path = 'publish-requests/funny-2026-11-16-20261116T120000.json';
+  const req = { facilityId: 'funny', weekStart: '2026-11-16', status: 'pending' };
+  assert.equal(gate.post({ action: 'write', session: out.session, path, text: JSON.stringify(req) }).ok, true);
+  assert.equal(gate.post({ action: 'read', session: out.session, paths: [path] }).error, 'forbidden');
+  /* ほかの事業所のファイル名、ファイル名と中身の食いちがい、決まりと違う名前は断る */
+  assert.equal(gate.post({ action: 'write', session: out.session, path: 'publish-requests/hitoiki-2026-11-16-20261116T120000.json', text: JSON.stringify({ ...req, facilityId: 'hitoiki' }) }).error, 'forbidden');
+  assert.equal(gate.post({ action: 'write', session: out.session, path: 'publish-requests/funny-2026-11-16-20261116T120001.json', text: JSON.stringify({ ...req, facilityId: 'hitoiki' }) }).error, 'forbidden');
+  assert.equal(gate.post({ action: 'write', session: out.session, path: 'publish-requests/funny-2026-11-16-20261116T120002.json', text: JSON.stringify({ ...req, weekStart: '2026-11-23' }) }).error, 'forbidden');
+  assert.equal(gate.post({ action: 'write', session: out.session, path: 'publish-requests/done/funny-2026-11-16-20261116T120000.json', text: JSON.stringify(req) }).error, 'forbidden');
+});

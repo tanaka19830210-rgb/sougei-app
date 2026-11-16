@@ -21,6 +21,7 @@ import { applyAttendance, checkAttendance, hasAttendance, expectedOn, attendance
 import { askAi } from './ai.js';
 import { voiceSupported, createVoice } from './voice.js';
 import { createBoard } from './board.js';
+import { createPublishRequest } from '../core/publishRequest.js';
 
 const $ = id => document.getElementById(id);
 const weekPath = (fid, key) => `data/${fid}/weeks/${key}.json`;
@@ -91,7 +92,7 @@ function draw() {
   $('save').classList.toggle('dirty', app.dirty);
   /* 保存するものが無いときは、「保存する」のまま灰色にして押せなくする */
   $('save').disabled = !app.dirty || !!app.preview;
-  ['ai','rules', 'prev', 'next', 'facility'].forEach(id => { $(id).disabled = !!app.preview; });
+  ['ai','rules', 'prev', 'next', 'facility', 'share'].forEach(id => { $(id).disabled = !!app.preview; });
   const w = $('warn');
   const shown = warnings.filter(x => !x.quiet);
   app.warnings = shown.map(x => x.text);
@@ -544,10 +545,66 @@ function redraft() {
   draftStrip(draft.summary, fitted);
 }
 
+/* A4よこ（余白を引いて およそ 1060×740 の大きさ）に収まる文字の大きさにする。
+   印刷と、LINE WORKS へ送る画像づくり（?render=1）で同じものを使う */
+function fitForPaper() {
+  app.board.setFontScale(app.board.measureFit(1060, 700));
+}
+
+/* ---------- 印刷・LINE WORKS へ送る ---------- */
+function shareSheet() {
+  const local = app.store.mode === 'local';
+  const sheet = openSheet(`<h3>印刷・送る</h3>
+    <p class="lead">${escapeHtml(app.facility.shortName || app.facility.name)}　${escapeHtml(weekLongLabel(app.weekKey))}</p>
+    <div class="menu">
+    <button type="button" data-a="print">印刷する（A4よこ1枚）</button>
+    <button type="button" data-a="send"${local ? ' disabled' : ''}>LINE WORKS のトークに、画像で送る</button>
+    </div>
+    <p class="mini">${local ? 'お試しモードでは送れません。' : '送るのは保存した内容です。2〜3分でトークに届きます。'}</p>
+    <div class="row"><div class="grow"></div><button class="btn2" data-a="close" type="button">とじる</button></div>`, { middle: true });
+  sheet.onclick = e => {
+    const a = e.target.closest('[data-a]');
+    if (!a || a.disabled) return;
+    closeSheet();
+    if (a.dataset.a === 'print') printWeek();
+    if (a.dataset.a === 'send') sendToLineWorks();
+  };
+}
+
+/* データ側に「送ってほしい」という小さなファイルを置く。それを合図に GitHub Actions が画像を作って送る */
+async function sendToLineWorks() {
+  if (app.store.mode === 'local') { toast('お試しモードでは送れません', 'warn'); return; }
+  if (app.dirty) {
+    if (!window.confirm('まだ保存していない変更があります。保存してから送りますか？')) return;
+    await save();
+    if (app.dirty) return;
+  }
+  if (!app.exists) { toast('この週は、まだ保存されていません。保存してから送ってください', 'warn'); return; }
+  const name = app.facility.shortName || app.facility.name;
+  if (!window.confirm(`${name}の ${weekLongLabel(app.weekKey)} の送迎表を、画像にして LINE WORKS のトークへ送ります。よろしいですか？`)) return;
+  const request = createPublishRequest({ facility: app.facility, weekStart: app.weekKey, requestedBy: app.config.editorName || '' });
+  const stamp = request.requestedAt.replace(/[-:]/g, '').replace(/\..+$/, '');
+  const path = `publish-requests/${app.facility.id}-${app.weekKey}-${stamp}.json`;
+  try {
+    await app.store.writeJson(path, request, { message: `送迎表 ${name} ${app.weekKey}週 を LINE WORKS へ送る` });
+    toast('送る手配をしました。2〜3分でトークに届きます');
+  } catch (e) {
+    console.error(e);
+    if (loginAgainIfNeeded(e)) return;
+    toast('送れませんでした：' + (e.message || e), 'error');
+  }
+}
+
+/* LINE WORKS へ送る画像を作るときの開き方（GitHub Actions の中から使う）
+   ?render=1&f=<事業所>&w=<月曜の日付> … 保存した表を紙面の大きさにして、body に data-render を付ける */
+function finishRender() {
+  if (!app.exists) { document.body.dataset.render = 'error:この週の送迎表は保存されていません'; return; }
+  fitForPaper();
+  document.body.dataset.render = 'ready';
+}
+
 function printWeek() {
-  /* A4よこ（余白を引いて およそ 1060×740 の大きさ）に収まる文字の大きさにしてから刷る */
-  const s = app.board.measureFit(1060, 700);
-  app.board.setFontScale(s);
+  fitForPaper();
   const back = () => { app.board.restoreScale(); window.removeEventListener('afterprint', back); };
   window.addEventListener('afterprint', back);
   window.print();
@@ -595,7 +652,10 @@ export async function start() {
   app.config = loadConfig();
   /* 番人のつなぎ先があり、この端末に GitHub の鍵が無ければ、Google ログインで開く。
      アドレスの後ろに ?otameshi=1 を付けると、ログインせずに見本のデータで試せる */
-  const trial = new URLSearchParams(location.search).get('otameshi') === '1';
+  const params = new URLSearchParams(location.search);
+  /* 画像づくり（?render=1）は、同じ置き場の data/ をそのまま読む（お試しモードと同じ読み方） */
+  const render = params.get('render') === '1';
+  const trial = params.get('otameshi') === '1' || render;
   const useGate = !!GATE.url && !isGithubReady(app.config) && !trial;
   if (useGate) {
     app.gate = loadGateSession();
@@ -633,7 +693,8 @@ export async function start() {
     return;
   }
   if (!app.facilities.length) { strip('事業所の一覧（data/facilities.json）が読めませんでした。設定を確かめてください。', 'error'); return; }
-  app.facility = app.facilities.find(f => f.id === app.config.facilityId) || app.facilities[0];
+  app.facility = app.facilities.find(f => f.id === (render ? params.get('f') : app.config.facilityId)) || (render ? null : app.facilities[0]);
+  if (!app.facility) { document.body.dataset.render = 'error:事業所が見つかりません'; return; }
   $('facility').innerHTML = app.facilities.map(f => `<option value="${escapeHtml(f.id)}">${escapeHtml(f.shortName || f.name)}</option>`).join('');
   $('facility').value = app.facility.id;
   /* 見られる事業所が1つだけなら、切りかえを出さずに名前だけにする */
@@ -654,6 +715,7 @@ export async function start() {
   $('zout').onclick = () => app.board.zoom(0.8);
   $('zfit').onclick = () => app.board.fit();
   $('more').onclick = menuSheet;
+  $('share').onclick = shareSheet;
   $('ai').onclick = () => aiSheet('');
   $('rules').onclick = rulesSheet;
 
@@ -661,5 +723,10 @@ export async function start() {
   window.addEventListener('orientationchange', () => setTimeout(() => app.board.fit(), 250));
   window.addEventListener('beforeunload', e => { if (app.dirty) { e.preventDefault(); e.returnValue = ''; } });
 
+  if (render) {
+    await openWeek(params.get('w') || thisWeek());
+    finishRender();
+    return;
+  }
   await openWeek(thisWeek());
 }
