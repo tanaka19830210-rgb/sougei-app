@@ -57,14 +57,18 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
         {
           const trip = week.days[day].trips[van.id][leg];
           const key = `${day}|${leg}|${van.id}`;
-          const cls = ['cell', leg, vi % 2 ? 'alt' : '', changedCell.has(key) ? 'changed' : '', warnCell.has(key) ? 'warn' : '', trip.rows.length || trip.driver ? '' : 'empty'].filter(Boolean).join(' ');
+          /* 枠の数＝最大人数。最大人数を決めてある車は、空いている枠も見せ、満席なら足せなくする */
+          const slots = cap.fixed ? cap.seats : 0;
+          const full = slots > 0 && trip.rows.length >= slots;
+          const cls = ['cell', leg, vi % 2 ? 'alt' : '', changedCell.has(key) ? 'changed' : '', warnCell.has(key) ? 'warn' : '', trip.rows.length || trip.driver ? '' : 'empty', full ? 'full' : ''].filter(Boolean).join(' ');
           html.push(`<div class="${cls}" data-day="${day}" data-van="${escapeHtml(van.id)}" data-leg="${leg}">`);
-          html.push(`<div class="drv"><i>${LEG_NAMES[leg][0]}</i><span class="${trip.driver ? '' : 'none'}">${escapeHtml(trip.driver || '運転手')}</span>${trip.rows.length ? `<em class="cnt${cap.seats && trip.rows.length > cap.seats ? ' over' : cap.seats && trip.rows.length === cap.seats ? ' full' : ''}">${trip.rows.length}${cap.seats ? '/' + cap.seats : ''}</em>` : ''}<u class="add" title="人を足す">＋</u></div>`);
+          html.push(`<div class="drv"><i>${LEG_NAMES[leg][0]}</i><span class="${trip.driver ? '' : 'none'}">${escapeHtml(trip.driver || '運転手')}</span>${trip.rows.length ? `<em class="cnt${cap.seats && trip.rows.length > cap.seats ? ' over' : cap.seats && trip.rows.length === cap.seats ? ' full' : ''}">${trip.rows.length}${cap.seats ? '/' + cap.seats : ''}</em>` : ''}${slots ? '' : '<u class="add" title="人を足す">＋</u>'}</div>`);
           trip.rows.forEach((row, i) => {
             const k = `${key}|${personKey(row.name)}`;
             const c2 = ['chip', row.flag || '', warnKey.has(k) ? 'warn' : '', changedName.has(k) ? 'changed' : ''].filter(Boolean).join(' ');
             html.push(`<div class="${c2}" data-i="${i}" style="--pc:${colorOf(row.place)}"><span class="nm">${escapeHtml(row.name)}<s>様</s>${row.place ? `<small>${escapeHtml(row.place)}</small>` : ''}</span><span class="tm">${shortTime(row.time)}</span></div>`);
           });
+          for (let i = trip.rows.length; i < slots; i++) html.push('<div class="slot" title="人を足す"></div>');
           html.push('</div>');
         }
       });
@@ -200,11 +204,15 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
     const under = document.elementFromPoint(x, y);
     const cell = under && under.closest ? under.closest('.cell') : null;
     const bin = under && under.closest ? under.closest('#bin') : null;
-    board.querySelectorAll('.cell.over').forEach(n => n.classList.remove('over'));
+    board.querySelectorAll('.cell.over').forEach(n => n.classList.remove('over', 'nofit'));
     board.querySelectorAll('.chip.gap').forEach(n => n.classList.remove('gap'));
     document.getElementById('bin').classList.toggle('over', !!bin);
     drag.target = null;
     if (bin) { drag.target = { bin: true }; }
+    else if (cell && cell.classList.contains('full') && cell !== drag.chip.closest('.cell')) {
+      cell.classList.add('over', 'nofit');          /* 満席の便には入れられない */
+      drag.target = { full: true };
+    }
     else if (cell) {
       cell.classList.add('over');
       const chips = [...cell.querySelectorAll('.chip:not(.lifted)')];
@@ -227,7 +235,7 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
     drag.fly.remove();
     drag.chip.classList.remove('lifted');
     document.body.classList.remove('dragging');
-    board.querySelectorAll('.cell.over').forEach(n => n.classList.remove('over'));
+    board.querySelectorAll('.cell.over').forEach(n => n.classList.remove('over', 'nofit'));
     board.querySelectorAll('.chip.gap').forEach(n => n.classList.remove('gap'));
     document.getElementById('bin').classList.remove('over');
     drag = null;
@@ -238,7 +246,8 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
       const { from, target } = drag;
       cancelDrag();
       if (e && e.type === 'pointercancel') return;
-      if (target && target.bin) handlers.onRemove(from);
+      if (target && target.full) handlers.onFull();
+      else if (target && target.bin) handlers.onRemove(from);
       else if (target) handlers.onMove(from, target);
       return;
     }
@@ -261,7 +270,7 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
     if (state.locked || e.target.closest('.chip')) return;
     const cell = e.target.closest('.cell');
     if (cell) {
-      if (e.target.closest('.add')) handlers.onAddRider(cellInfo(cell));
+      if (e.target.closest('.add, .slot')) handlers.onAddRider(cellInfo(cell));
       else if (e.target.closest('.drv')) handlers.onTapDriver(cellInfo(cell));
       return;
     }

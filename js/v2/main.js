@@ -276,6 +276,7 @@ function riderSheet(pos, isNew) {
     const next = M.clone(app.week);
     const rows = next.days[pos.day].trips[pos.vanId][pos.leg].rows;
     const value = { name, place: $('f-place').value.trim(), time: M.normTime($('f-time').value) };
+    if (isNew && M.isFull(next, pos.vanId, pos.day, pos.leg)) { toast('その便は満席です', 'warn'); return; }
     if (isNew) {
       const at = value.time ? rows.findIndex(r => r.time && r.time > value.time) : -1;
       rows.splice(at >= 0 ? at : rows.length, 0, value);
@@ -297,6 +298,8 @@ function moveRider(from, to) {
   const src = next.days[from.day].trips[from.vanId][from.leg].rows;
   const [row] = src.splice(from.index, 1);
   if (!row) return;
+  const sameCell = from.day === to.day && from.vanId === to.vanId && from.leg === to.leg;
+  if (!sameCell && M.isFull(next, to.vanId, to.day, to.leg)) { toast('その便は満席です', 'warn'); return; }
   delete row.flag;
   if (from.leg !== to.leg) row.time = '';
   next.days[to.day].trips[to.vanId][to.leg].rows.splice(to.index, 0, row);
@@ -540,6 +543,7 @@ export async function start() {
     stage: $('stage'), board: $('board'), layout,
     handlers: {
       onMove: moveRider,
+      onFull: () => toast('その便は満席です。先にだれかを別の車へ動かしてください', 'warn'),
       onRemove: removeAt,
       onTapRider: pos => riderSheet(pos, false),
       onAddRider: pos => riderSheet(pos, true),

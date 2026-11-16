@@ -12,7 +12,7 @@
    その週だけの事情は、このあと声や文字で AI に伝えて直す。
    ============================================================ */
 
-import { createEmptyWeek, DAY_NUMBERS, LEGS, personKey, normText, clone, vanByName } from './model.js';
+import { createEmptyWeek, DAY_NUMBERS, LEGS, personKey, normText, clone, vanByName, isFull } from './model.js';
 
 const LOOK_BACK = 5;      /* いつもの人かどうかを、直近なん週で見るか */
 const REGULAR_MIN = 2;    /* 先週を除く直近の週のうち、なん回乗っていたら「いつもの人」か */
@@ -67,7 +67,7 @@ export function buildDraft({ facilityId, weekStart, history }) {
         if (now.has(key) || e.count < Math.min(REGULAR_MIN, older.length)) return;
         if (older.length && e.count / older.length < 0.5) return;
         const van = vanByName(week, e.latest.vanName);
-        if (!van) return;
+        if (!van || isFull(week, van.id, day, leg)) return;      /* 満席の車へは戻さない */
         const rows = week.days[day].trips[van.id][leg].rows;
         const row = { ...clone(e.latest.row), flag: 'restored' };
         const at = row.time ? rows.findIndex(r => r.time && r.time > row.time) : -1;

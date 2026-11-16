@@ -96,6 +96,10 @@ input,textarea{-webkit-user-select:text;user-select:text;}
 .strip i.planned{border:2px solid #2e9a3a;background:#fff;}
 .quick button.planned{background:#e3f5e1;border-color:#2e9a3a;font-weight:700;}
 /* 下書きのしるしは、背景色（迎え・送りの色）とまぎれないよう、わくで示す */
+/* 空いている枠（枠の数＝その車の最大人数） */
+.slot{margin-top:1px;border:1px dashed #b9b4a8;border-radius:.3em;min-height:1.5em;background:rgba(255,255,255,.45);cursor:pointer;}
+.cell.ret .slot{border-color:#a9b9cb;}
+.cell.over.nofit{outline-color:#d6453a;background:#fde8e6;}
 .chip.restored{box-shadow:0 0 0 .14em #2f6fd0 inset;border-color:#2f6fd0;}
 .chip.onlyLast{box-shadow:0 0 0 .14em #c98a00 inset;border-color:#c98a00;border-style:dashed;}
 .chip.changed{background:#ffe08a;border-color:#e2b100;font-weight:700;}
