@@ -69,7 +69,10 @@ jobs:
           sys.exit(1 if failed else 0)
           PY
 
+      # 1つの事業所で失敗しても、読めたほかの事業所のぶんは保存する（always）。
+      # 失敗した事業所があれば、上のステップが赤くなるので気づける。
       - name: 変わっていたら保存する
+        if: always()
         run: |
           git config user.name "soutai-attendance"
           git config user.email "soutai-attendance@users.noreply.github.com"
@@ -78,5 +81,12 @@ jobs:
             echo "利用予定に変わりはありませんでした"
           else
             git commit -m "利用予定を Dropbox から読みこみました"
-            git push
+            # アプリの保存などとぶつかったら、最新を取りこんでやりなおす
+            for i in 1 2 3 4 5; do
+              git push && exit 0
+              echo "保存がぶつかりました。最新を取りこんでやりなおします（$i 回目）"
+              sleep $((i * 3))
+              git pull --rebase || exit 1
+            done
+            echo "保存できませんでした"; exit 1
           fi

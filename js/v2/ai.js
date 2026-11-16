@@ -165,7 +165,7 @@ export async function askAi({ apiKey, gate, fetchImpl, ...rest }) {
   }
   if (status < 200 || status >= 300) {
     const detail = (json && json.error && json.error.message) || '';
-    if (status === 401) throw new Error(apiKey ? 'AI の鍵（APIキー）が正しくないようです。設定画面で入れなおしてください。' : '番人に入れた AI の鍵（ANTHROPIC_API_KEY）が正しくないようです。');
+    if (status === 401) throw new Error(apiKey ? 'AI の鍵（APIキー）が正しくないようです。設定画面で入れなおしてください。' : 'GAS に入れた AI の鍵（ANTHROPIC_API_KEY）が正しくないようです。');
     if (status === 429) throw new Error('AI がこみあっています。1分ほど待ってからもう一度おねがいします。');
     if (status >= 500) throw new Error('AI の側で不具合が起きています。少し待ってからもう一度おねがいします。');
     throw new Error(`AI に頼めませんでした（${status}）${detail ? '：' + detail : ''}`);

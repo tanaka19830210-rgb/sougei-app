@@ -28,6 +28,25 @@ export function hasAttendance(attendance) {
   return !!attendance && DAY_NUMBERS.some(d => expectedOn(attendance, d).size > 0);
 }
 
+/*
+  利用予定が「まだ分からない」曜日（1〜6）。
+  月をまたぐ週で、来月のシートがまだ Excel に無いと、その日の日付が missing に入る。
+  その日は「だれも来ない」ではないので、はずしたり知らせたりしない。
+*/
+const dayNumber = iso => {
+  const [y, m, d] = String(iso || '').split('-').map(Number);
+  return y && m && d ? Date.UTC(y, m - 1, d) / 86400000 : NaN;
+};
+export function unknownDays(attendance) {
+  const out = new Set();
+  const start = dayNumber(attendance && attendance.weekStart);
+  ((attendance && attendance.missing) || []).forEach(iso => {
+    const diff = dayNumber(iso) - start;
+    if (diff >= 0 && diff < 6) out.add(diff + 1);
+  });
+  return out;
+}
+
 function ridersOn(week, day, leg) {
   const map = new Map();
   week.vans.forEach(v => week.days[day].trips[v.id][leg].rows.forEach(r => map.set(personKey(r.name), { van: v, row: r })));
@@ -75,8 +94,10 @@ export function applyAttendance(source, attendance, history) {
   const week = clone(source);
   const removed = [], added = [], unplaced = [], moved = [];
   if (!hasAttendance(attendance)) return { week, removed, added, unplaced, moved, used: false };
+  const unknown = unknownDays(attendance);
 
   DAY_NUMBERS.forEach(day => {
+    if (unknown.has(day)) return;
     const expected = expectedOn(attendance, day);
     const notes = week.days[day].notes;
     const addNote = text => { if (!notes.some(n => normText(n) === normText(text))) notes.push(text); };
@@ -137,7 +158,9 @@ export function applyAttendance(source, attendance, history) {
 export function checkAttendance(week, attendance) {
   const warnings = [];
   if (!hasAttendance(attendance)) return warnings;
+  const unknown = unknownDays(attendance);
   DAY_NUMBERS.forEach(day => {
+    if (unknown.has(day)) return;
     const expected = expectedOn(attendance, day);
     LEGS.forEach(leg => {
       const now = ridersOn(week, day, leg);
@@ -158,7 +181,9 @@ export function checkAttendance(week, attendance) {
 /* AI に見せる用の、文字だけの利用予定 */
 export function attendanceToText(attendance) {
   if (!hasAttendance(attendance)) return '';
+  const unknown = unknownDays(attendance);
   return DAY_NUMBERS.map(day => {
+    if (unknown.has(day)) return `${DAY_NAMES[day]}曜 利用予定はまだ分かりません（来月のシートが未作成）`;
     const people = [...expectedOn(attendance, day).entries()].map(([name, e]) => {
       const tags = [e.out === false ? '迎えなし' : '', e.ret === false ? '送りなし' : '', e.outPlace ? e.outPlace + '迎え' : '', e.retPlace ? e.retPlace + '送り' : ''].filter(Boolean);
       return name + (tags.length ? `(${tags.join('・')})` : '');

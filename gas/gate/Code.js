@@ -149,24 +149,74 @@ function whoIs_(session) {
 }
 
 /* ---------- AI（Anthropic）に代わりにたのむ ---------- */
+/*
+  会社の鍵を、送迎表の AI 以外に使わせないための決まり。
+  - モデルは決まったものだけ。道具（tools）は送迎表を直す道具（change_schedule）だけ。
+    ネット検索などの「サーバー側の道具」（type の付いたもの）は通さない。
+  - 送るのは model・max_tokens・system・tools・tool_choice・messages だけ（ほかは捨てる）。
+  - 大きさと回数に上限を置く（1人あたり6時間で AI_LIMIT 回まで）。
+*/
 var AI_MAX_TOKENS = 16000;
+var AI_MODELS = ['claude-opus-5-5'];
+var AI_TOOLS = ['change_schedule'];
+var AI_MAX_CHARS = 200000;
+var AI_LIMIT = 60;
+var AI_WINDOW_SEC = 21600;
 function ai_(who, req) {
   var key = prop_('ANTHROPIC_API_KEY');
-  if (!key) throw fail_('error', '番人に AI の鍵（ANTHROPIC_API_KEY）がまだ入っていません');
-  var body = req.request;
-  if (!body || typeof body !== 'object' || !Array.isArray(body.messages) || !body.model) throw fail_('error', 'AI への頼みごとが読めません');
-  body.max_tokens = Math.min(Number(body.max_tokens) || 4000, AI_MAX_TOKENS);
-  delete body.stream;
+  if (!key) throw fail_('error', 'GAS に AI の鍵（ANTHROPIC_API_KEY）がまだ入っていません');
+  var src = req.request;
+  if (!src || typeof src !== 'object' || !Array.isArray(src.messages) || !src.messages.length || src.messages.length > 4) throw fail_('error', 'AI への頼みごとが読めません');
+  src.messages.forEach(function (m) {
+    if (!m || (m.role !== 'user' && m.role !== 'assistant')) throw fail_('error', 'AI への頼みごとが読めません');
+  });
+  if (AI_MODELS.indexOf(String(src.model)) < 0) throw fail_('error', 'この AI のモデルは使えません');
+  var tools = Array.isArray(src.tools) ? src.tools : [];
+  tools.forEach(function (t) {
+    if (!t || typeof t !== 'object' || (t.type && t.type !== 'custom') || AI_TOOLS.indexOf(String(t.name)) < 0 || !t.input_schema) {
+      throw fail_('error', 'この AI の道具は使えません');
+    }
+  });
+  var body = {
+    model: String(src.model),
+    max_tokens: Math.min(Number(src.max_tokens) || 4000, AI_MAX_TOKENS),
+    messages: src.messages
+  };
+  if (typeof src.system === 'string') body.system = src.system;
+  if (tools.length) body.tools = tools;
+  var choice = src.tool_choice;
+  if (choice && typeof choice === 'object') {
+    if (choice.type === 'auto' || choice.type === 'any') body.tool_choice = { type: choice.type };
+    else if (choice.type === 'tool' && AI_TOOLS.indexOf(String(choice.name)) >= 0) body.tool_choice = { type: 'tool', name: String(choice.name) };
+  }
+  var payload = JSON.stringify(body);
+  if (payload.length > AI_MAX_CHARS) throw fail_('error', 'AI に渡す内容が大きすぎます。伝える内容を短くしてください');
+  countAi_(who.email);
   var res = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
     method: 'post',
     contentType: 'application/json',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    payload: JSON.stringify(body),
+    payload: payload,
     muteHttpExceptions: true
   });
   var json = null;
   try { json = JSON.parse(res.getContentText()); } catch (e) { json = null; }
   return { ok: true, status: res.getResponseCode(), body: json };
+}
+
+/* 1人あたりの回数を数える。上限をこえたら断る（数えるのはキャッシュなので、設定画面のプロパティはさわらない） */
+function countAi_(email) {
+  var cache = CacheService.getScriptCache();
+  var key = 'ai:' + email;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(5000);
+  try {
+    var used = Number(cache.get(key) || 0);
+    if (used >= AI_LIMIT) throw fail_('error', 'AI を使う回数が多すぎます。しばらく（数時間）待ってからおねがいします');
+    cache.put(key, String(used + 1), AI_WINDOW_SEC);
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /* ---------- 読んでよい・書いてよいファイルか ---------- */

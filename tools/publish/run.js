@@ -96,10 +96,12 @@ async function handleRequest(repo, store, request, requestFile) {
   await writeFile(outFile, buffer);
   log(`画像を置きました：${outFile}`);
 
-  const text = request.message || publishMessageText({
+  /* 本文はいつも決まった文にする（依頼ファイルの message は使わない。好きな文を送らせないため）。
+     名前は1行・20字までにそろえる */
+  const text = publishMessageText({
     facility,
     weekStart,
-    requestedBy: request.requestedBy
+    requestedBy: String(request.requestedBy || '').replace(/\s+/g, ' ').trim().slice(0, 20)
   });
 
   if (DRY_RUN) {
@@ -143,8 +145,14 @@ async function handleRequest(repo, store, request, requestFile) {
 
 /* 依頼ファイルを done/ に移す（結果つき） */
 async function moveToDone(store, file, request, result) {
+  /* 行き先は依頼ファイルの名前から作る（中身の facilityId などは使わない。
+     中身に「../」などが入っていても、done/ の外へは書かないため）。
+     新しい形の名前には時刻が入っているので、同じ名前にはならない */
+  const base = String(file.name).replace(/[^A-Za-z0-9_.-]/g, '_').replace(/\.json$/, '');
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\..+$/, '');
-  const donePath = paths.publishDonePath(request.facilityId || 'unknown', request.weekStart || 'unknown', stamp);
+  const donePath = /\d{8}T\d{6}$/.test(base)
+    ? `${paths.PUBLISH_ROOT}/done/${base}.json`
+    : `${paths.PUBLISH_ROOT}/done/${base}-${stamp}.json`;
   await store.writeJson(donePath, withResult(request, result));
   await rm(file.full, { force: true });
   log(`依頼ファイルを ${donePath} へ移しました`);
