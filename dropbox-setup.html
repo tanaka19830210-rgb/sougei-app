@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dropbox とつなぐ｜送迎表</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/form.css">
+<style>
+  ol.steps{padding-left:1.3em;line-height:1.9;font-size:15px;}
+  ol.steps code,.out code{background:#f1f4f1;border-radius:5px;padding:1px 6px;font-size:14px;word-break:break-all;}
+  .out{background:#f7faf7;border:2px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:12px;font-size:15px;line-height:1.8;display:none;}
+  .out.show{display:block;}
+  .out.error{border-color:#d6453a;background:#fde8e6;}
+  .secret{display:block;margin:4px 0 10px;padding:10px;background:#fff;border:1px dashed #999;border-radius:8px;font-family:monospace;font-size:13px;word-break:break-all;user-select:all;-webkit-user-select:all;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">Dropbox とつなぐ <small>利用予定を毎週自動で読みこむための、はじめの1回だけの準備</small></div>
+  <div class="spacer"></div>
+  <a class="btn outline" href="settings.html">設定へ戻る</a>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>これは何をする画面か</h2>
+    <p class="lead">
+      送迎表の下書きは、Dropbox にある「利用記録兼シフト」の Excel から、その週に利用する方を読みとって作ります。
+      毎週月曜の朝に自動で読みにいくために、Dropbox の「読むだけの鍵」を1回だけ作ります。
+      鍵はこの画面には保存されません。出てきた文字を、GitHub のデータ用リポジトリの Secrets に貼りつけて使います。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>1. Dropbox でアプリを作る</h2>
+    <ol class="steps">
+      <li><a href="https://www.dropbox.com/developers/apps/create" target="_blank" rel="noopener">Dropbox のアプリ作成ページ</a>を、シフト表を見られるアカウントで開きます。</li>
+      <li><b>Scoped access</b> → <b>Full Dropbox</b> をえらび、名前を付けて作ります（例：<code>sougei-yotei</code>）。</li>
+      <li>「Permissions」タブで <code>account_info.read</code>・<code>files.metadata.read</code>・<code>files.content.read</code> の3つにチェックを入れて <b>Submit</b> を押します。</li>
+      <li>「Settings」タブにある <b>App key</b> を、下のらんに貼りつけます。（App secret は使いません）</li>
+    </ol>
+    <div class="field">
+      <label for="appkey">App key</label>
+      <input id="appkey" type="text" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="英数字15文字ほど">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. Dropbox で許可する</h2>
+    <p class="lead">下のボタンを押すと Dropbox の画面が開きます。「許可」を押すと <b>コード</b> が表示されるので、それをこのらんに貼りつけてください。</p>
+    <div class="btnrow"><button class="btn go" id="open" type="button">Dropbox の許可の画面を開く</button></div>
+    <div class="field">
+      <label for="code">Dropbox に表示されたコード</label>
+      <input id="code" type="text" autocapitalize="off" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="btnrow"><button class="btn go" id="exchange" type="button">鍵を作る</button></div>
+    <div class="out" id="result"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. GitHub に貼りつける</h2>
+    <ol class="steps">
+      <li>データ用リポジトリ（非公開の sougei-data）を GitHub で開き、<b>Settings → Secrets and variables → Actions → New repository secret</b> を押します。</li>
+      <li>名前 <code>DROPBOX_APP_KEY</code> に、上の App key を入れて保存します。</li>
+      <li>名前 <code>DROPBOX_REFRESH_TOKEN</code> に、「2」で出てきた長い文字を入れて保存します。</li>
+      <li><b>Actions</b> タブ →「利用予定を Dropbox から読みこむ」→ <b>Run workflow</b> を押すと、すぐ1回ためせます。緑のチェックが付けば成功です。</li>
+    </ol>
+    <p class="hint">このあとは、毎週月曜の朝 8:30 までに自動で読みこまれます。鍵は「読むだけ」で、Dropbox のファイルを書きかえることはできません。使うのをやめるときは、Dropbox のアプリ作成ページでアプリを消してください。</p>
+  </div>
+
+</div>
+
+<script type="module">
+  const $ = id => document.getElementById(id);
+  const KEY = 'soutai:dropbox-setup';
+  const b64url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  /* 許可の画面を開いてからコードを貼るまで、合言葉（verifier）を覚えておく */
+  function remember(data) { try { sessionStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* 覚えられなくても、この画面を開いたままなら動く */ } }
+  function recall() { try { return JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+  let state = recall();
+  if (state && state.appKey) $('appkey').value = state.appKey;
+
+  function show(html, error) {
+    const node = $('result');
+    node.className = 'out show' + (error ? ' error' : '');
+    node.innerHTML = html;
+  }
+
+  $('open').onclick = async () => {
+    const appKey = $('appkey').value.trim();
+    if (!appKey) { show('先に「1」の App key を入れてください。', true); return; }
+    const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+    state = { appKey, verifier };
+    remember(state);
+    const url = 'https://www.dropbox.com/oauth2/authorize?' + new URLSearchParams({
+      client_id: appKey, response_type: 'code', token_access_type: 'offline',
+      code_challenge: b64url(digest), code_challenge_method: 'S256'
+    });
+    window.open(url, '_blank', 'noopener');
+  };
+
+  $('exchange').onclick = async () => {
+    const code = $('code').value.trim();
+    if (!state || !state.verifier) { show('先に「Dropbox の許可の画面を開く」を押してください。', true); return; }
+    if (!code) { show('Dropbox に表示されたコードを貼りつけてください。', true); return; }
+    try {
+      const res = await fetch('https://api.dropboxapi.com/oauth2/token', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ grant_type: 'authorization_code', code, client_id: state.appKey, code_verifier: state.verifier })
+      });
+      const json = await res.json();
+      if (!res.ok || !json.refresh_token) {
+        show('鍵を作れませんでした。コードは1回しか使えないので、「許可の画面を開く」からやり直してください。<br><code></code>', true);
+        $('result').querySelector('code').textContent = json.error_description || json.error || String(res.status);
+        return;
+      }
+      /* つながるか、その場で確かめる（アカウントの名前を読むだけ） */
+      let who = '';
+      try {
+        const me = await fetch('https://api.dropboxapi.com/2/users/get_current_account', {
+          method: 'POST', headers: { authorization: 'Bearer ' + json.access_token, 'content-type': 'application/json' }, body: 'null'
+        });
+        if (me.ok) who = (await me.json()).name.display_name;
+      } catch (e) { /* 確かめられなくても、鍵は作れている */ }
+      show('鍵ができました。' + (who ? '（Dropbox のアカウント：<b></b>）' : '') +
+        '<br>下の文字を、「3」の <code>DROPBOX_REFRESH_TOKEN</code> に貼りつけてください。' +
+        '<span class="secret"></span>この文字は人に見せないでください。この画面を閉じると消えます。');
+      if (who) $('result').querySelector('b').textContent = who;
+      $('result').querySelector('.secret').textContent = json.refresh_token;
+      try { sessionStorage.removeItem(KEY); } catch (e) { /* 消せなくてもよい */ }
+    } catch (e) {
+      show('Dropbox につながりませんでした。ネットの接続を確かめて、もう一度おねがいします。', true);
+    }
+  };
+</script>
+</body>
+</html>

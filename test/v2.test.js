@@ -150,3 +150,62 @@ test('車の最大人数：決めてあればその数、まだなら これま�
   assert.equal(buildDraft({ facilityId: 'funny', weekStart: '2026-11-16', history: [w] }).week.vans[1].seats, 1);
   assert.ok(JSON.stringify(buildRequest({ week: w, roster, rules: [], instruction: 'x' })).includes('セレナ（最大1人）'));
 });
+
+/* ---------- 利用予定との照らしあわせ ---------- */
+import { applyAttendance, checkAttendance, attendanceToText } from '../js/v2/attendance.js';
+
+function att(days) {
+  return { weekStart: '2026-11-16', days: Object.fromEntries([1, 2, 3, 4, 5, 6].map(d => [d, days[d] || []])) };
+}
+const P = (family, extra = {}) => ({ name: family + ' 太郎', family, out: true, ret: true, memo: '', ...extra });
+
+test('利用予定：予定の無い人をはずし、予定のある人をこれまでの車へ足し、場所とメモを反映する', () => {
+  const last = week('2026-11-09', usual);
+  put(last, 1, 'v2', 'out', '藤本', '08:50'); put(last, 1, 'v2', 'ret', '藤本', '15:50');
+  const draft = week('2026-11-16', w => { usual(w); });                       /* 藤本は下書きにいない */
+  const a = att({ 1: [
+    P('井上', { outPlace: 'ホームB' }),                                      /* 乗る場所が変わる */
+    P('小林', { ret: false }),                                               /* 送りなし */
+    P('藤本'),                                                               /* 予定あり・表にいない → 足す */
+    P('中村'),                                                               /* これまで乗ったことがない → 車が決まらない */
+    P('重松', { absent: true }),
+    P('上田', { rest: ['13:00迎え'] })
+  ] });
+  const r = applyAttendance(draft, a, [last]);
+  assert.equal(names(r.week, 1, 'v1', 'out'), '井上', '予定の無い岡田はずれる');
+  assert.equal(r.week.days[1].trips.v1.out.rows[0].place, 'ホームB');
+  assert.equal(names(r.week, 1, 'v2', 'out'), '小林,藤本');
+  assert.equal(r.week.days[1].trips.v2.out.rows[1].flag, 'planned');
+  assert.equal(names(r.week, 1, 'v2', 'ret'), '藤本', '小林は送りなし');
+  assert.deepEqual(r.unplaced.map(u => u.name + u.leg), ['中村out', '上田out', '中村ret', '上田ret']);
+  assert.deepEqual(r.week.days[1].notes, ['小林様送りなし', '重松様休み', '上田様 13:00迎え']);
+  assert.equal(names(r.week, 2, 'v1', 'out'), '', '火曜はだれも予定が無いので空');
+  assert.equal(names(draft, 1, 'v1', 'out'), '井上,岡田', 'もとの表は書きかえない');
+});
+
+test('利用予定：ファイルが無い週は、何も変えない・何も知らせない', () => {
+  const w = week('2026-11-16', usual);
+  const r = applyAttendance(w, null, []);
+  assert.equal(r.used, false);
+  assert.equal(names(r.week, 1, 'v1', 'out'), '井上,岡田');
+  assert.deepEqual(checkAttendance(w, att({})), []);
+});
+
+test('利用予定：表との食いちがいを知らせる', () => {
+  const w = week('2026-11-16', usual);
+  const texts = checkAttendance(w, att({ 1: [P('井上'), P('小林', { out: false }), P('藤本')] })).filter(x => x.day === 1).map(x => x.text);
+  assert.ok(texts.includes('月曜の迎え：藤本様は利用予定ですが、表にいません'));
+  assert.ok(texts.includes('月曜の迎え：岡田様は利用予定がありませんが、ハイエースに乗っています'));
+  assert.ok(texts.includes('月曜の迎え：小林様は「迎えなし」の予定ですが、セレナに乗っています'));
+  assert.ok(attendanceToText(att({ 1: [P('小林', { out: false, retPlace: 'ホームA' })] })).includes('月曜 1人: 小林(迎えなし・ホームA送り)'));
+});
+
+test('利用予定：連絡らんに「送迎なし」とある人は、表にいなくても知らせない・足さない', () => {
+  const last = week('2026-11-09', usual);
+  const w = week('2026-11-16', usual);
+  w.days[1].notes.push('藤本様送迎なし', '中村様送りなし');
+  const a = att({ 1: [P('井上'), P('岡田', { ret: false }), P('小林'), P('藤本'), P('中村')] });
+  const texts = checkAttendance(w, a).filter(x => x.day === 1).map(x => x.text);
+  assert.deepEqual(texts, ['月曜の迎え：中村様は利用予定ですが、表にいません']);
+  assert.deepEqual(applyAttendance(w, a, [last]).unplaced.map(u => u.name + u.leg), ['中村out']);
+});
