@@ -8,8 +8,8 @@
    ============================================================ */
 
 export const GATE = {
-  url: '',
-  googleClientId: ''
+  url: 'https://script.google.com/macros/s/AKfycby0mlfyV2OIcL2wCpLIZh7bYR5cOUfSRgpuacBtxn3Qco7bkfh3nH4YETpAX6wHCLRH9A/exec',
+  googleClientId: '364088595162-dejoo3ptf2m5tuet6dfntl4fvdmkipl1.apps.googleusercontent.com'
 };
 
 const KEY = 'soutai:gate';
