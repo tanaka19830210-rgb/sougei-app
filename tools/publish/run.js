@@ -111,25 +111,29 @@ async function handleRequest(repo, store, request, requestFile) {
   }
 
   /*
-    送り先のトークルームを決める。
-    事業所ごとに分けたいときは、facilities.json の lwChannelId に書く。
-    書いていない事業所は、これまでどおり LW_CHANNEL_ID（共通のトーク）へ送る。
+    送り先を決める（facilities.json に書く）。
+      lwUserId    … その人へ1対1で送る（LINE WORKS のID。xxx@works-… の形）。あればこちらを使う
+      lwChannelId … その事業所のトークルームへ送る
+    どちらも無い事業所は、これまでどおり LW_CHANNEL_ID（共通のトーク）へ送る。
   */
+  const facilityUser = String(facility.lwUserId || '').trim();
   const facilityChannel = String(facility.lwChannelId || '').trim();
-  const missing = missingSecrets(process.env, { hasFacilityChannel: !!facilityChannel });
+  const missing = missingSecrets(process.env, { hasFacilityChannel: !!(facilityUser || facilityChannel) });
   if (missing.length) {
     throw new Error('GitHub Secrets が足りません：' + missing.join('、'));
   }
-  if (facilityChannel) {
+  let target = {};
+  if (facilityUser) {
+    log(`${facility.name} の送り先の人（1対1）へ送ります`);
+    target = { userId: facilityUser, channelId: '' };
+  } else if (facilityChannel) {
     log(`${facility.name} 専用のトークへ送ります`);
+    target = { channelId: facilityChannel };
   } else {
     log('共通のトーク（LW_CHANNEL_ID）へ送ります');
   }
 
-  const client = clientFromEnv(process.env, {
-    log,
-    ...(facilityChannel ? { channelId: facilityChannel } : {})
-  });
+  const client = clientFromEnv(process.env, { log, ...target });
   const sent = await client.publishImage({ fileName, bytes: buffer, text });
   return {
     imageBytes: buffer.length,

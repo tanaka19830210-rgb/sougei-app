@@ -87,7 +87,7 @@ function shorten(text) {
    ============================================================ */
 export function createLineWorksClient(options = {}) {
   const {
-    clientId, clientSecret, serviceAccount, privateKey, botId, channelId,
+    clientId, clientSecret, serviceAccount, privateKey, botId, channelId, userId,
     scope = 'bot',
     authBase = AUTH_BASE,
     apiBase = API_BASE,
@@ -201,11 +201,14 @@ export function createLineWorksClient(options = {}) {
     return { fileId: json.fileId || null, fileSize: json.fileSize || bytes.length };
   }
 
-  /* 4. トークルームへ送る */
+  /* 4. 送る。userId があればその人へ1対1で、無ければトークルームへ
+        （1対1：POST /bots/{botId}/users/{userId}/messages） */
   async function sendContent(content) {
-    if (!channelId) throw new Error('LW_CHANNEL_ID が設定されていません');
+    if (!userId && !channelId) throw new Error('LW_CHANNEL_ID が設定されていません');
     const accessToken = await getAccessToken();
-    const url = `${apiBase}/bots/${encodeURIComponent(botId)}/channels/${encodeURIComponent(channelId)}/messages`;
+    const url = userId
+      ? `${apiBase}/bots/${encodeURIComponent(botId)}/users/${encodeURIComponent(userId).replace(/%40/g, "@")}/messages`
+      : `${apiBase}/bots/${encodeURIComponent(botId)}/channels/${encodeURIComponent(channelId)}/messages`;
     await request('メッセージの送信', url, {
       method: 'POST',
       headers: authHeaders(accessToken, { 'Content-Type': 'application/json' }),

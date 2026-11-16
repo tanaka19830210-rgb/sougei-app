@@ -9,7 +9,7 @@ body{display:flex;flex-direction:column;background:#f4f6f4;-webkit-user-select:n
 input,textarea{-webkit-user-select:text;user-select:text;}
 
 /* ---------- 上の帯 ---------- */
-.bar{background:var(--green);color:#fff;display:flex;align-items:center;gap:6px;padding:5px 8px;flex:none;overflow-x:auto;}
+.bar{background:var(--green);color:#fff;display:flex;align-items:center;gap:4px;padding:5px 8px;flex:none;overflow-x:auto;}
 .tb#warn{background:#d6453a;font-weight:700;}
 .bar .name{font-weight:700;font-size:16px;margin-right:2px;white-space:nowrap;}
 .bar select{font:inherit;font-size:15px;font-weight:700;border:none;border-radius:8px;padding:8px 6px;background:rgba(255,255,255,.18);color:#fff;min-height:40px;}
@@ -189,6 +189,10 @@ body.dragging #bin{display:block;}
   .drv .add,.notecell p.none,.drv span.none{visibility:hidden;}
   .chip{border-color:#bbb;}
   .chip.restored,.chip.onlyLast,.chip.planned{box-shadow:none;border-style:solid;}
+  /* 矛盾の赤わくは、印刷と LINE WORKS の画像には出さない */
+  .chip.warn{border-color:#bbb;box-shadow:none;}
+  .cell.warn .drv i{background:#e08a00;}
+  .cell.ret.warn .drv i{background:#3f7fc0;}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .printhead{display:block !important;font-weight:700;font-size:13pt;margin:0 0 2mm;}
 }
