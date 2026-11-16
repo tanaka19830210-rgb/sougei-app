@@ -78,7 +78,6 @@ export function publishMessageText({ facility, weekStart, requestedBy }) {
     `${facility.name}　${range}`
   ];
   if (requestedBy) lines.push(`（${requestedBy} が確定しました）`);
-  lines.push('当日の変更は、必ず事務所へご連絡ください。');
   return lines.join('\n');
 }
 
