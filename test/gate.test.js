@@ -25,7 +25,8 @@ function makeGate({ access, files = {}, tokens = {} } = {}) {
   };
   const repo = new Map(Object.entries(files).map(([p, data], i) => [p, { text: JSON.stringify(data), sha: 'sha' + i }]));
   const log = [];
-  const response = (code, body) => ({ getResponseCode: () => code, getContentText: () => (typeof body === 'string' ? body : JSON.stringify(body)) });
+  const cache = new Map();
+  const response =(code, body) => ({ getResponseCode: () => code, getContentText: () => (typeof body === 'string' ? body : JSON.stringify(body)) });
 
   function github(req) {
     log.push(req);
@@ -47,6 +48,8 @@ function makeGate({ access, files = {}, tokens = {} } = {}) {
   const sandbox = {
     JSON, Date, Object, Array, String, Number, RegExp, Error, encodeURIComponent,
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null }) },
+    CacheService: { getScriptCache: () => ({ get: k => cache.get(k) || null, put: (k, v) => { cache.set(k, v); } }) },
+    LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
     ContentService: {
       MimeType: { JSON: 'json' },
       createTextOutput: text => ({ text, setMimeType() { return this; } })
@@ -239,7 +242,7 @@ test('番人：LINE WORKS へ送る頼みごとは、自分の事業所のぶん
 test('番人：AI に代わりにたのむ。鍵が無ければ断る。ログインしていなければ通さない', () => {
   const { gate, out } = loggedIn('funny@example.com');
   const request = { model: 'claude-opus-5-5', max_tokens: 99999, stream: true, messages: [{ role: 'user', content: 'こんにちは' }] };
-  assert.equal(gate.post({ action: 'ai', session: out.session, request }).message, '番人に AI の鍵（ANTHROPIC_API_KEY）がまだ入っていません');
+  assert.equal(gate.post({ action: 'ai', session: out.session, request }).message, 'GAS に AI の鍵（ANTHROPIC_API_KEY）がまだ入っていません');
   gate.props.ANTHROPIC_API_KEY = 'sk-dummy';
   const res = gate.post({ action: 'ai', session: out.session, request });
   assert.equal(res.ok, true);
@@ -252,4 +255,49 @@ test('番人：AI に代わりにたのむ。鍵が無ければ断る。ログ�
   assert.equal(body.stream, undefined);
   assert.equal(gate.post({ action: 'ai', session: 'にせもの', request }).error, 'auth');
   assert.equal(gate.post({ action: 'ai', session: out.session, request: { messages: 'x' } }).error, 'error');
+});
+
+test('番人：AI は送迎表の使い方だけ通す（モデル・道具・項目をしぼる）', async () => {
+  const { buildRequest } = await import('../js/v2/ai.js');
+  const { gate, out } = loggedIn('funny@example.com');
+  gate.props.ANTHROPIC_API_KEY = 'sk-dummy';
+  const ask = request => gate.post({ action: 'ai', session: out.session, request });
+  const base = { model: 'claude-opus-5-5', max_tokens: 100, messages: [{ role: 'user', content: 'x' }] };
+
+  /* アプリが本当に作る頼みごとは通る */
+  const real = buildRequest({ week: { vans: [], days: { 1: { notes: [], trips: {} }, 2: { notes: [], trips: {} }, 3: { notes: [], trips: {} }, 4: { notes: [], trips: {} }, 5: { notes: [], trips: {} }, 6: { notes: [], trips: {} } } }, roster: { people: [], drivers: [], capacity: {} }, rules: [], instruction: 'x' });
+  assert.equal(ask(real).ok, true);
+
+  /* ほかのモデル・ネット検索などの道具・知らない道具は断る（ログインは切らない＝ error） */
+  assert.equal(ask({ ...base, model: 'claude-other' }).error, 'error');
+  assert.equal(ask({ ...base, tools: [{ type: 'web_search_20250305', name: 'web_search' }] }).error, 'error');
+  assert.equal(ask({ ...base, tools: [{ name: 'other', input_schema: { type: 'object' } }] }).error, 'error');
+
+  /* 決まった項目のほかは捨てる */
+  assert.equal(ask({ ...base, metadata: { user_id: 'x' }, mcp_servers: [{}], container: 'x' }).ok, true);
+  const sent = JSON.parse(gate.log[gate.log.length - 1].payload);
+  assert.deepEqual(Object.keys(sent).sort(), ['max_tokens', 'messages', 'model']);
+
+  /* 大きすぎるものは断る */
+  assert.equal(ask({ ...base, messages: [{ role: 'user', content: 'あ'.repeat(210000) }] }).error, 'error');
+});
+
+test('番人：AI は1人あたりの回数に上限がある', () => {
+  const { gate, out } = loggedIn('funny@example.com');
+  gate.props.ANTHROPIC_API_KEY = 'sk-dummy';
+  const request = { model: 'claude-opus-5-5', max_tokens: 100, messages: [{ role: 'user', content: 'x' }] };
+  let last;
+  for (let i = 0; i < 61; i++) last = gate.post({ action: 'ai', session: out.session, request });
+  assert.equal(last.error, 'error');
+  assert.match(last.message, /回数が多すぎます/);
+});
+
+test('アプリ：ログインしなおしたら、同じ画面のまま新しいしるしで保存できる', async () => {
+  const { gate, out } = loggedIn('funny@example.com');
+  let current = 'こわれた古いしるし';
+  const store = createGateStore({ url: 'https://gate.example', session: () => current, fetchImpl: gate.fetchImpl });
+  await assert.rejects(store.writeJson('data/funny/weeks/2026-11-23.json', { a: 1 }), e => e.name === 'AuthError');
+  current = out.session;   /* 別のタブでログインしなおした */
+  const saved = await store.writeJson('data/funny/weeks/2026-11-23.json', { a: 1 });
+  assert.ok(saved.sha);
 });

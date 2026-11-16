@@ -223,7 +223,7 @@ async function save() {
     toast(app.store.mode === 'local' ? 'この端末の中に保存しました（お試しモード）' : '保存しました');
   } catch (e) {
     console.error(e);
-    if (e.name === 'AuthError' && app.store.mode === 'gate') { toast('ログインの期限が切れました。この画面のまま、別のタブでログインしなおしてから、もう一度「保存する」を押してください', 'error'); draw(); return; }
+    if (e.name === 'AuthError' && app.store.mode === 'gate') { toast(RELOGIN_TEXT, 'error'); draw(); return; }
     toast(e.name === 'ConflictError' ? 'ほかの人が先に保存しています。開きなおしてから直してください。' : '保存できませんでした：' + (e.message || e), 'error');
   }
   draw();
@@ -408,15 +408,23 @@ function aiSheet(prefill = '') {
     } catch (e) {
       console.error(e);
       $('busy').classList.remove('show'); $('f-send').disabled = false;
-      toast(e.message || String(e), 'error');
+      toast(e.name === 'AuthError' ? RELOGIN_TEXT : (e.message || String(e)), 'error');
     }
   };
 }
 
-/* 番人に AI を頼む（鍵は番人の中にだけある） */
+/* いまのログインのしるし。別のタブでログインしなおしていれば、そちらを使う */
+function currentSession() {
+  const fresh = loadGateSession();
+  if (fresh) app.gate = fresh;
+  return app.gate ? app.gate.session : '';
+}
+const RELOGIN_TEXT = 'ログインの期限が切れたか、使えないアカウントです。この画面のまま、別のタブで送迎表を開いてログインしなおしてから、もう一度おねがいします';
+
+/* GAS に AI を頼む（鍵は GAS の中にだけある） */
 async function askGateAi(request) {
   try {
-    return await callGate(GATE.url, { action: 'ai', session: app.gate.session, request }, fetch.bind(globalThis));
+    return await callGate(GATE.url, { action: 'ai', session: currentSession(), request }, fetch.bind(globalThis));
   } catch (e) {
     if (e && e.name === 'NetworkError') throw new Error('AI につながりませんでした。ネットの接続を確かめてください。');
     throw e;
@@ -629,7 +637,7 @@ export async function start() {
     app.gate = loadGateSession();
     if (!app.gate) { showLogin(''); return; }
   }
-  app.store = createStore(app.config, { gate: useGate ? { url: GATE.url, session: app.gate.session } : null });
+  app.store = createStore(app.config, { gate: useGate ? { url: GATE.url, session: currentSession } : null });
   const badge = $('modebadge');
   /* 本番のときは何も出さない。お試しモードのときだけ、見本のデータだと分かるよう札を出す */
   badge.textContent = app.store.mode === 'local' ? 'お試し' : '';

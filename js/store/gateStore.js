@@ -29,10 +29,10 @@ export async function callGate(url, body, fetchImpl) {
   try {
     json = JSON.parse(await res.text());
   } catch (e) {
-    throw new StoreError('番人から、読めない返事が来ました', String(e));
+    throw new StoreError('GAS から、読めない返事が来ました', String(e));
   }
   if (json && json.ok) return json;
-  const message = (json && json.message) || '番人でエラーが起きました';
+  const message = (json && json.message) || 'GAS でエラーが起きました';
   if (json && json.error === 'conflict') throw new ConflictError(message);
   if (json && (json.error === 'auth' || json.error === 'forbidden')) {
     const err = new AuthError(message);
@@ -45,10 +45,12 @@ export async function callGate(url, body, fetchImpl) {
 
 export function createGateStore(options = {}) {
   const url = options.url;
-  const session = options.session;
+  /* session は文字か、「いまのしるしを返す関数」。関数なら毎回読みなおすので、
+     別のタブでログインしなおしたあとも、この画面のまま保存できる */
+  const sessionOf = typeof options.session === 'function' ? options.session : () => options.session;
   const fetchImpl = options.fetchImpl || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
-  if (!url) throw new StoreError('番人のつなぎ先が設定されていません');
-  if (!session) throw new StoreError('ログインしていません');
+  if (!url) throw new StoreError('GAS のつなぎ先が設定されていません');
+  if (!sessionOf()) throw new StoreError('ログインしていません');
   if (!fetchImpl) throw new StoreError('この環境では通信できません');
 
   let waiting = [];          /* まとめて読むのを待っている頼みごと */
@@ -58,7 +60,7 @@ export function createGateStore(options = {}) {
     const batch = waiting.splice(0, BATCH_MAX);
     timer = waiting.length ? setTimeout(flush, 0) : null;
     try {
-      const out = await callGate(url, { action: 'read', session, paths: batch.map(b => b.path) }, fetchImpl);
+      const out = await callGate(url, { action: 'read', session: sessionOf(), paths: batch.map(b => b.path) }, fetchImpl);
       batch.forEach((b, i) => {
         const f = out.files[i];
         if (!f) { b.resolve(null); return; }
@@ -86,7 +88,7 @@ export function createGateStore(options = {}) {
 
     async writeJson(path, data, { sha, message } = {}) {
       const out = await callGate(url, {
-        action: 'write', session, path, sha: sha || '',
+        action: 'write', session: sessionOf(), path, sha: sha || '',
         message: message || `${path} を更新`,
         text: JSON.stringify(data, null, 2) + '\n'
       }, fetchImpl);

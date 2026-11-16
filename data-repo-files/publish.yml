@@ -35,6 +35,10 @@ jobs:
     steps:
       - name: 送迎表のデータを取り出す
         uses: actions/checkout@v4
+        with:
+          # 合図になった時点ではなく、いちばん新しい状態を取り出す。
+          # 前の実行が送り終えて done/ へ移した依頼を、もう一度送らないため。
+          ref: main
 
       - name: アプリを取り出す（紙面の作りかたを共通で使うため）
         uses: actions/checkout@v4
@@ -96,5 +100,11 @@ jobs:
             echo "片づけるものはありませんでした"
           else
             git commit -m "配信の結果を記録しました"
-            git push || (git pull --rebase && git push)
+            for i in 1 2 3 4 5; do
+              git push && exit 0
+              echo "保存がぶつかりました。最新を取りこんでやりなおします（$i 回目）"
+              sleep $((i * 3))
+              git pull --rebase || exit 1
+            done
+            echo "保存できませんでした"; exit 1
           fi

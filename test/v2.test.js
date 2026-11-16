@@ -191,6 +191,17 @@ test('利用予定：ファイルが無い週は、何も変えない・何も�
   assert.deepEqual(checkAttendance(w, att({})), []);
 });
 
+test('利用予定：来月のシートが無い日（missing）は「分からない」として、はずさない・知らせない', () => {
+  const w = week('2026-11-16', usual);
+  /* 月曜は予定あり（井上だけ）。火〜土はシートが無い想定 */
+  const a = { ...att({ 1: [P('井上')] }), missing: ['2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21'] };
+  const r = applyAttendance(w, a, []);
+  assert.equal(names(r.week, 1, 'v1', 'out'), '井上', '月曜は予定どおり岡田がはずれる');
+  assert.equal(names(r.week, 2, 'v1', 'out'), names(w, 2, 'v1', 'out'), '火曜はさわらない');
+  assert.ok(checkAttendance(w, a).every(x => x.day === '1' || x.day === 1), '火〜土は知らせない');
+  assert.match(attendanceToText(a), /火曜 利用予定はまだ分かりません/);
+});
+
 test('利用予定：表との食いちがいを知らせる', () => {
   const w = week('2026-11-16', usual);
   const texts = checkAttendance(w, att({ 1: [P('井上'), P('小林', { out: false }), P('藤本')] })).filter(x => x.day === 1).map(x => x.text);
