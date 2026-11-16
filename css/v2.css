@@ -140,6 +140,10 @@ body.dragging #bin{display:block;}
 .sheet .row .grow{flex:1;}
 .quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
 .quick button{font:inherit;font-size:14px;border:1px solid var(--line);background:#f4f6f4;border-radius:20px;padding:6px 12px;cursor:pointer;}
+.quick.people{max-height:9.5em;overflow:auto;}
+.quick button.riding{opacity:.42;}
+.quick button.on{background:var(--green);color:#fff;border-color:var(--green);}
+.sheet p.mini{margin:4px 0 0;font-size:12px;color:var(--sub);}
 .mic{width:76px;height:76px;border-radius:50%;border:none;background:var(--green);color:#fff;cursor:pointer;flex:none;display:flex;align-items:center;justify-content:center;}
 .mic svg{width:34px;height:34px;fill:#fff;}
 .mic.on{background:#d6453a;animation:pulse 1.2s infinite;}

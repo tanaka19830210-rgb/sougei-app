@@ -28,7 +28,7 @@ function colorOf(place) {
 export function createBoard({ stage, board, handlers, layout = 'auto' }) {
   let scale = 1, fitScale = 1, state = null;
   /* wide＝迎えと送りを横にならべる（横長の画面むき）。tall＝たてに積む（たて長の画面むき）。
-     「全体」のたびに両方ためして、文字が大きくなるほうを選ぶ。 */
+     端末の向きで自動に切りかわる。 */
   let wide = true;
 
   /* ---------- 描く ---------- */
@@ -110,11 +110,10 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
 
   function fit() {
     if (state) {
-      const modes = layout === 'wide' ? [true] : layout === 'tall' ? [false] : [true, false];
-      const scores = modes.map(mode => { if (wide !== mode) { wide = mode; render(state); } return measureFit(); });
-      const best = modes[scores.indexOf(Math.max(...scores))];
+      /* 自動のときは、画面が横長なら横ならべ（A）、たて長ならたて積み（C） */
+      const best = layout === 'wide' ? true : layout === 'tall' ? false : stage.clientWidth >= stage.clientHeight;
       if (wide !== best) { wide = best; render(state); }
-      fitScale = Math.max(...scores);
+      fitScale = measureFit();
     } else fitScale = measureFit();
     scale = fitScale;
     board.style.fontSize = (BASE_FONT * scale) + 'px';
