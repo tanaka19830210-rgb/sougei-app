@@ -2,7 +2,10 @@
 """
 これまでの Excel の送迎表（1シート＝1週）を、アプリの週ファイル（JSON）に直す道具。
 
-  python3 tools/import_excel.py 送迎表.xlsx 出力フォルダ --facility funny --last 12
+  python3 tools/import_excel.py 送迎表.xlsx 出力フォルダ --facility funny --last 12 --seats "セレナ=7,ハイエース=9"
+
+--seats には、車ごとの最大の乗車人数を書きます。書かないと定員が入りません
+（取りこみ直すと、前に入れた定員は消えます）。
 
 出力フォルダ/data/<事業所>/weeks/<月曜の日付>.json ができます。
 本物のお名前が入るので、出力先は「非公開のデータ用リポジトリ」にしてください。
@@ -126,7 +129,16 @@ def main():
     ap.add_argument('out')
     ap.add_argument('--facility', default='funny')
     ap.add_argument('--last', type=int, default=12, help='新しいほうから何週ぶん取りこむか')
+    ap.add_argument('--seats', default='', help='車ごとの最大の乗車人数。例: "セレナ=7,ハイエース=9"（取りこみ直しても定員が消えないように）')
     a = ap.parse_args()
+    seats = {}
+    for part in re.split(r'[,、，]+', a.seats):
+        if not part.strip():
+            continue
+        m = re.match(r'^(.+?)\s*[=＝:：]\s*(\d+)$', norm(part))
+        if not m:
+            raise SystemExit('--seats の書きかたが読めません: %s（例: "セレナ=7,ハイエース=9"）' % part)
+        seats[m.group(1)] = int(m.group(2))
     wb = openpyxl.load_workbook(a.xlsx, data_only=True)
     weeks = {}
     for ws in wb.worksheets:
@@ -142,12 +154,22 @@ def main():
     keys = sorted(weeks)[-a.last:]
     folder = os.path.join(a.out, 'data', a.facility, 'weeks')
     os.makedirs(folder, exist_ok=True)
+    no_seats = set()
     for k in keys:
         w = weeks[k]
+        for v in w['vans']:
+            if v['name'] in seats:
+                v['seats'] = seats[v['name']]
+            elif seats:
+                no_seats.add(v['name'])
         w['facilityId'] = a.facility
         with open(os.path.join(folder, k + '.json'), 'w', encoding='utf-8') as f:
             json.dump(w, f, ensure_ascii=False, indent=1)
     print('%d週ぶんを書き出しました: %s 〜 %s' % (len(keys), keys[0], keys[-1]))
+    if not seats:
+        print('注意：--seats が無いので、車の定員は入っていません', file=sys.stderr)
+    elif no_seats:
+        print('注意：定員の指定が無い車があります: %s' % '、'.join(sorted(no_seats)), file=sys.stderr)
 
 
 if __name__ == '__main__':
