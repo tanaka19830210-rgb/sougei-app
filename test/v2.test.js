@@ -209,3 +209,19 @@ test('利用予定：連絡らんに「送迎なし」とある人は、表に�
   assert.deepEqual(texts, ['月曜の迎え：中村様は利用予定ですが、表にいません']);
   assert.deepEqual(applyAttendance(w, a, [last]).unplaced.map(u => u.name + u.leg), ['中村out']);
 });
+
+test('満席：枠の数＝最大人数。満席の車へは、命令でも利用予定でも下書きでも足さない', () => {
+  const w = week('2026-11-16', usual);
+  w.vans[0].seats = 2;                                       /* ハイエースは 井上・岡田 で満席 */
+  assert.equal(M.isFull(w, 'v1', 1, 'out'), true);
+  assert.equal(M.isFull(w, 'v2', 1, 'out'), false, '最大人数を決めていない車は止めない');
+  const r = M.applyOps(w, [{ type: 'place', name: '小林', days: [1], leg: 'out', van: 'ハイエース' }, { type: 'place', name: '岡田', days: [1], leg: 'out', van: 'ハイエース', time: '08:20' }]);
+  assert.equal(names(r.week, 1, 'v1', 'out'), '岡田,井上', '乗っている人の順番の直しは通す');
+  assert.equal(names(r.week, 1, 'v2', 'out'), '小林', '移せなかった人は元の車のまま');
+  assert.ok(r.problems[0].includes('満席（2人）'));
+
+  const last = week('2026-11-09', x => { usual(x); put(x, 1, 'v1', 'out', '藤本', '08:50'); });
+  const fitted = applyAttendance(w, att({ 1: [P('井上'), P('岡田', { ret: false }), P('小林'), P('藤本', { ret: false })] }), [last]);
+  assert.deepEqual(fitted.unplaced.map(u => u.name + u.leg), ['藤本out']);
+  assert.equal(names(fitted.week, 1, 'v1', 'out'), '井上,岡田');
+});

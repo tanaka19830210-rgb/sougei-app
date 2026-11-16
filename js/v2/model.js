@@ -68,6 +68,15 @@ export function seatsOf(van, roster) {
   return { seats: learned, fixed: false };
 }
 
+/*
+  その便が満席か（最大人数を決めてある車だけ。決めていない車は止めない）。
+  枠の数＝最大人数なので、満席の便には人を足せない。
+*/
+export function isFull(week, vanId, day, leg) {
+  const van = week.vans.find(v => v.id === vanId);
+  return !!van && van.seats > 0 && week.days[day].trips[vanId][leg].rows.length >= van.seats;
+}
+
 function cleanRow(r) {
   const row = { name: String(r.name).trim(), place: String(r.place || '').trim(), time: normTime(r.time) };
   if (r.flag) row.flag = r.flag;
@@ -198,6 +207,11 @@ export function applyOps(source, ops) {
         if (!van) { problems.push(`「${op.van}」という車がありません（${op.name}様を乗せられませんでした）`); break; }
         daysOf(op).forEach(day => legsOf(op).forEach(leg => {
           const old = findRider(week, day, leg, op.name);
+          /* 満席の車へは乗せない（すでにその車に乗っている人の、順番や場所の直しは通す） */
+          if (isFull(week, van.id, day, leg) && !old.some(hit => hit.vanId === van.id)) {
+            problems.push(`${where(day, leg)}の${van.name}は満席（${van.seats}人）なので、${personKey(op.name)}様を乗せられませんでした`);
+            return;
+          }
           let row = { name: personKey(op.name), place: '', time: '' };
           if (old.length) {
             row = { ...old[0].row };

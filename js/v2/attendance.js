@@ -11,7 +11,7 @@
    画面はさわらない（test/ からそのまま呼べる）。
    ============================================================ */
 
-import { DAY_NUMBERS, DAY_NAMES, LEGS, LEG_NAMES, personKey, normText, clone, vanByName } from './model.js';
+import { DAY_NUMBERS, DAY_NAMES, LEGS, LEG_NAMES, personKey, normText, clone, vanByName, isFull } from './model.js';
 
 /* その日に利用する人の一覧：名字 → { out, ret, outPlace, retPlace, memo } */
 export function expectedOn(attendance, day) {
@@ -109,7 +109,8 @@ export function applyAttendance(source, attendance, history) {
         }
         const hit = lastRide(history, name, day, leg, place);
         const van = hit ? vanByName(week, hit.van.name) : null;
-        if (!van) { unplaced.push({ day, leg, name }); return; }
+        /* これまでの車が分からない・満席のときは、足さずに知らせる（どの車にするかは人が決める） */
+        if (!van || isFull(week, van.id, day, leg)) { unplaced.push({ day, leg, name }); return; }
         const row = { name, place: place || hit.row.place || '', time: hit.row.time || '', flag: 'planned' };
         const rows = week.days[day].trips[van.id][leg].rows;
         const at = row.time ? rows.findIndex(r => r.time && r.time > row.time) : -1;
