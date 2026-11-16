@@ -382,12 +382,9 @@ function aiSheet(prefill = '') {
   const canHear = voiceSupported();
   openSheet(`
     <h3>今週の事情を伝える</h3>
-    <div class="talk">
-      ${canHear ? '<button class="mic" id="mic" type="button" aria-label="話す"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.9V21h2v-2.1A7 7 0 0019 12h-2z"/></svg></button>' : ''}
-      <div class="hint">下のらんを押して、Typeless などの音声入力でそのまま話してください。${canHear ? '左のマイクでも聞き取れます（もう一度押すと止まります）。' : ''}<br>
-      例：「井上さんは木曜お休み。岡田さんは金曜、病院なので送りなし。火曜のセレナの運転は山田さん」</div>
-    </div>
-    <label>伝える内容（聞きまちがいは、そのままでも AI が名簿を見て直します）</label>
+    ${canHear ? `<div class="talk">
+      <button class="mic" id="mic" type="button" aria-label="話す"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.9V21h2v-2.1A7 7 0 0019 12h-2z"/></svg></button>
+    </div>` : ''}
     <textarea id="f-say" placeholder="ここに文字で打ってもかまいません">${escapeHtml(prefill)}</textarea>
     <div class="interim" id="interim"></div>
     <label class="keep"><input type="checkbox" id="f-keep"> <b>これは毎週の送迎ルールとして覚える</b><span>（今週だけでなく、これからずっと守ること。例：「井上様は車椅子なのでハイエースに乗せる」）</span></label>
