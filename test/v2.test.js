@@ -119,7 +119,7 @@ test('normalizeWeek：欠けのあるファイルでも壊れない', () => {
   assert.deepEqual(w.days[6].trips.v1.ret, { driver: '', rows: [] });
 });
 
-test('AI へ送る内容：表・名簿・決まりごと・言葉が入り、鍵は入らない', () => {
+test('AI へ送る内容：表・名簿・送迎ルール・言葉が入り、鍵は入らない', () => {
   const w = week('2026-11-09', usual);
   const req = buildRequest({ week: w, roster: M.rosterFrom([w]), rules: ['井上様はハイエース'], instruction: 'いのうえさんは木曜休み', weekLabel: '11月9日の週' });
   const body = JSON.stringify(req);
