@@ -18,3 +18,4 @@ import './publish.test.js';
 import './lineworks.test.js';
 import './data.test.js';
 import './v2.test.js';
+import './gate.test.js';

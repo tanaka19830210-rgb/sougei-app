@@ -17,3 +17,6 @@ desktop.ini
 # 作業中の控え
 *.log
 *.bak
+
+# GAS のつなぎ先（clasp が作る。スクリプトの番号は上げません）
+.clasp.json
