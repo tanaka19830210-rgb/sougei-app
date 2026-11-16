@@ -25,6 +25,26 @@ var SESSION_DAYS = 30;
 var MAX_READ = 40;
 var DATE_FILE = '\\d{4}-\\d{2}-\\d{2}\\.json';
 
+/*
+  はじめに1回だけ、エディタでこの関数（hajimeni）を実行する。
+  - Google に「外と通信してよい」という許可をもらう
+  - SESSION_SECRET（署名用のでたらめな文字）を作る
+  - まだ入っていない設定の名前を、実行ログに出す
+*/
+function hajimeni() {
+  var store = PropertiesService.getScriptProperties();
+  if (!store.getProperty('SESSION_SECRET')) {
+    store.setProperty('SESSION_SECRET', Utilities.getUuid() + Utilities.getUuid() + Utilities.getUuid());
+  }
+  if (!store.getProperty('GITHUB_BRANCH')) store.setProperty('GITHUB_BRANCH', 'main');
+  if (!store.getProperty('ACCESS')) store.setProperty('ACCESS', '{}');
+  UrlFetchApp.fetch('https://api.github.com/zen', { muteHttpExceptions: true });
+  var missing = ['GITHUB_TOKEN', 'GITHUB_REPO', 'GOOGLE_CLIENT_ID'].filter(function (k) { return !store.getProperty(k); });
+  var people = Object.keys(JSON.parse(store.getProperty('ACCESS') || '{}')).length;
+  Logger.log(missing.length ? 'まだ入っていない設定：' + missing.join('、') : '設定はそろっています');
+  Logger.log('ACCESS に登録されているアカウント：' + people + ' 件');
+}
+
 function doGet() {
   return ContentService.createTextOutput('ok');
 }
