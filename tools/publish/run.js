@@ -3,9 +3,8 @@
 
    やること
    1. データ用リポジトリの publish-requests/*.json（配信依頼）を見つける
-   2. その事業所・その週の送迎表を読んで、印刷と同じ紙面のHTMLを組み立てる
-      （紙面の組み立ては js/core/printLayout.js。アプリの印刷画面と同じものです）
-   3. ヘッドレスブラウザで PNG にする
+   2. その事業所・その週の送迎表（data/<事業所>/weeks/<週>.json）があるか確かめる
+   3. アプリの画面（v2）を ?render=1 で開き、印刷と同じ見た目を PNG にする（render.js）
    4. LINE WORKS のトークルームへ、本文＋画像を送る
    5. 依頼ファイルを publish-requests/done/ へ移す（結果を書き足す）
       → 同じ依頼で何度も動かないようにするため
@@ -17,15 +16,12 @@
 import { readdir, rm, mkdir, writeFile } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
 
 import { createFsStore } from './fsStore.js';
-import { renderPng } from './render.js';
+import { renderWeekPng } from './render.js';
 import { clientFromEnv, missingSecrets } from './lineworks.js';
 import { createRepository } from '../../js/store/repository.js';
-import { buildPageHtml, buildStandaloneHtml } from '../../js/core/printLayout.js';
 import { normalizePublishRequest, withResult, publishImageName, publishMessageText, createPublishRequest } from '../../js/core/publishRequest.js';
-import { createContext } from '../../js/core/assign.js';
 import { parseDateKey, weekKeyOf } from '../../js/core/dates.js';
 import * as paths from '../../js/store/paths.js';
 
@@ -42,11 +38,6 @@ const OUT_DIR = resolve(process.env.OUT_DIR || join(APP_DIR, 'tools', 'publish',
 
 function log(message) {
   console.log(message);
-}
-
-/* 紙面のCSSは、アプリで使っているものをそのまま読む */
-function readCss() {
-  return ['css/base.css', 'css/print.css'].map(p => readFileSync(join(APP_DIR, p), 'utf8'));
 }
 
 /* ------------------------------------------------------------
@@ -69,7 +60,18 @@ async function listRequestFiles() {
 /* ------------------------------------------------------------
    1件の依頼を配信する
    ------------------------------------------------------------ */
-async function handleRequest(repo, store, request) {
+/* 依頼ファイルの名前（<事業所>-<週>[-<時刻>].json）が、中身と合っているか。
+   番人はファイル名で事業所を確かめているので、中身だけ別の事業所にされても送らない */
+export function nameMatches(fileName, request) {
+  if (!fileName) return true;
+  const m = String(fileName).match(/^([a-z0-9_]+)-(\d{4}-\d{2}-\d{2})(?:-\d{8}T\d{6})?\.json$/);
+  return !!m && m[1] === request.facilityId && m[2] === request.weekStart;
+}
+
+async function handleRequest(repo, store, request, requestFile) {
+  if (!nameMatches(requestFile, request)) {
+    throw new Error(`依頼ファイルの名前（${requestFile}）と中身（${request.facilityId} ${request.weekStart}）が合っていません`);
+  }
   const facilities = await repo.loadFacilities();
   const facility = facilities.find(f => f.id === request.facilityId);
   if (!facility) {
@@ -81,34 +83,13 @@ async function handleRequest(repo, store, request) {
   }
   const weekStart = weekKeyOf(parsed);
 
-  const masters = await repo.loadMasters(facility.id);
-  if (!masters.users.length || !masters.vans.length) {
-    throw new Error(`${facility.name} の利用者または車両のマスタが空です`);
+  const weekFile = `data/${facility.id}/weeks/${weekStart}.json`;
+  if (!(await store.readJson(weekFile))) {
+    throw new Error(`${facility.name} の ${weekStart} 週の送迎表（${weekFile}）が保存されていません`);
   }
-  const ctx = createContext({
-    facility,
-    users: masters.users,
-    vans: masters.vans,
-    ngPairs: masters.ngPairs
-  });
+  log(`${facility.name}　${weekStart} 週の送迎表があります。画像にします`);
 
-  const loaded = await repo.loadPlan({ facility, vans: masters.vans, weekStart });
-  if (!loaded.exists) {
-    throw new Error(`${facility.name} の ${weekStart} 週の送迎表（${paths.planPath(facility.id, weekStart)}）が見つかりません`);
-  }
-  log(`${facility.name}　${weekStart} 週の送迎表を読みました`);
-
-  const pageHtml = buildPageHtml({
-    facility,
-    ctx,
-    drivers: masters.drivers,
-    plan: loaded.plan,
-    weekStart,
-    now: new Date()
-  });
-  const html = buildStandaloneHtml({ facility, weekStart, pageHtml, cssTexts: readCss() });
-
-  const { buffer, size } = await renderPng({ html, log });
+  const { buffer, size } = await renderWeekPng({ appDir: APP_DIR, dataDir: DATA_DIR, facilityId: facility.id, weekStart, log });
   const fileName = publishImageName({ facilityId: facility.id, weekStart });
   await mkdir(OUT_DIR, { recursive: true });
   const outFile = join(OUT_DIR, fileName);
@@ -208,7 +189,7 @@ async function main() {
     try {
       const read = await store.readJson(file.path);
       request = normalizePublishRequest(read ? read.data : null);
-      const result = await handleRequest(repo, store, request);
+      const result = await handleRequest(repo, store, request, file.name);
       log('配信しました：' + result.detail);
       await moveToDone(store, file, request, { ok: true, ...result });
     } catch (e) {

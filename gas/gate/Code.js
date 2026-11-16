@@ -154,6 +154,9 @@ function ruleOf_(path) {
   if (m) return { kind: m[2], fid: m[1], write: m[2] === 'weeks' };
   m = path.match(/^data\/([a-z0-9_-]+)\/rules\.json$/);
   if (m) return { kind: 'rules', fid: m[1], write: true };
+  /* LINE WORKS へ送る頼みごと（置くだけ。読めない。事業所名に - は使わない） */
+  m = path.match(/^publish-requests\/([a-z0-9_]+)-(\d{4}-\d{2}-\d{2})-\d{8}T\d{6}\.json$/);
+  if (m) return { kind: 'publish', fid: m[1], week: m[2], write: true, noRead: true };
   return null;
 }
 
@@ -162,6 +165,7 @@ function checkPath_(who, path, writing) {
   if (!rule) throw fail_('forbidden', 'このファイルは、あつかえません');
   if (rule.fid && !mayUse_(who.facilities, rule.fid)) throw fail_('forbidden', 'この事業所は、見られない設定です');
   if (writing && !rule.write) throw fail_('forbidden', 'このファイルは、書きかえられません');
+  if (!writing && rule.noRead) throw fail_('forbidden', 'このファイルは、読めません');
   return rule;
 }
 
@@ -214,9 +218,14 @@ function onlyMine_(who, text) {
 }
 
 function write_(who, req) {
-  checkPath_(who, req.path, true);
+  var rule = checkPath_(who, req.path, true);
   var text = String(req.text || '');
-  try { JSON.parse(text); } catch (e) { throw fail_('error', '保存する中身が JSON になっていません'); }
+  var data;
+  try { data = JSON.parse(text); } catch (e) { throw fail_('error', '保存する中身が JSON になっていません'); }
+  /* 送る頼みごとは、ファイル名と中身の事業所・週が同じでなければ断る（ほかの事業所の表を送らせないため） */
+  if (rule.kind === 'publish' && (!data || data.facilityId !== rule.fid || data.weekStart !== rule.week)) {
+    throw fail_('forbidden', '送る頼みごとの中身が、ファイル名と合っていません');
+  }
   var body = {
     message: String(req.message || (req.path + ' を更新')).slice(0, 200) + '（' + who.email + '）',
     content: Utilities.base64Encode(text, Utilities.Charset.UTF_8),
