@@ -1,0 +1,82 @@
+# ============================================================
+# 利用予定を、毎週月曜の朝に Dropbox から読みこむしくみ
+#
+# このファイルは、データ用リポジトリ（非公開）の
+#   .github/workflows/attendance.yml
+# に置きます。
+#
+# やること：
+#   Dropbox の「利用記録兼シフト」の Excel を取りよせ、今週と来週の
+#   「だれが何曜日に利用するか」を data/<事業所>/attendance/ に書き出します。
+#   送迎表のアプリは、それを読んで下書きを利用予定に合わせます。
+#
+# 用意するもの（データ用リポジトリの Settings → Secrets and variables → Actions）：
+#   DROPBOX_APP_KEY        … Dropbox で作ったアプリの App key
+#   DROPBOX_REFRESH_TOKEN  … アプリの「Dropbox とつなぐ」画面（dropbox-setup.html）で出る文字
+# どのファイルを読むかは data/attendance-sources.json に書きます。
+# ============================================================
+name: 利用予定を Dropbox から読みこむ
+
+on:
+  schedule:
+    # 月曜の朝 8:15（日本時間）。GitHub は世界標準時で数えるので「日曜 23:15」と書きます。
+    # GitHub の時計は数分〜十数分おくれて動くことがあるため、8:30 に間に合うよう少し早めにしています。
+    - cron: '15 23 * * 0'
+  # 手で動かすとき：Actions の画面で「Run workflow」を押す
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: soutai-attendance
+  cancel-in-progress: false
+
+jobs:
+  attendance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: データを取り出す
+        uses: actions/checkout@v4
+
+      - name: アプリを取り出す（Excel を読む道具を使うため）
+        uses: actions/checkout@v4
+        with:
+          repository: tanaka19830210-rgb/sougei-app
+          path: app
+
+      - name: Python を用意する
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Excel を読む部品を入れる
+        run: pip install --quiet openpyxl
+
+      - name: Dropbox から読んで、利用予定を書き出す
+        env:
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, sys
+          sources = json.load(open('data/attendance-sources.json', encoding='utf-8'))['sources']
+          failed = False
+          for s in sources:
+              print('==', s['facilityId'], s.get('title', ''))
+              r = subprocess.run([sys.executable, 'app/tools/import_attendance.py', '--dropbox', s['dropbox'], '--out', '.', '--facility', s['facilityId']])
+              failed = failed or r.returncode != 0
+          sys.exit(1 if failed else 0)
+          PY
+
+      - name: 変わっていたら保存する
+        run: |
+          git config user.name "soutai-attendance"
+          git config user.email "soutai-attendance@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "利用予定に変わりはありませんでした"
+          else
+            git commit -m "利用予定を Dropbox から読みこみました"
+            git push
+          fi

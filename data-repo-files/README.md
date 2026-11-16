@@ -5,6 +5,7 @@
 | このフォルダのファイル | データ用リポジトリでの場所 | 何をするもの |
 | --- | --- | --- |
 | `publish.yml` | `.github/workflows/publish.yml` | 「確定して配信」を押したときに、送迎表を画像にして LINE WORKS へ送るしくみ |
+| `attendance.yml` | `.github/workflows/attendance.yml` | 毎週月曜の朝に、Dropbox の「利用記録兼シフト」から今週と来週の利用予定を読みこむしくみ。準備はアプリの「Dropbox とつなぐ」画面（`dropbox-setup.html`）に手順があります |
 
 置きかた（コピー＆貼りつけでできます）と、LINE WORKS の情報の登録手順は、
 アプリのリポジトリの `README.md` の「LINE WORKS 配信のしたく」に、順番どおりに書いてあります。

@@ -74,12 +74,13 @@ const GUIDE = `あなたは障害福祉の生活介護事業所で、週の送�
 - 言葉の頭に【毎週の決まりごと】とあるときは、その内容を remember で覚え、今週の表にも当てはまるなら合わせて直す。
 - 「点検して」と頼まれたときは ops を空にして、気づいたことを questions に1つずつ書く。見る所：同じ便に同じ人が2回、迎えだけ／送りだけの人（連絡らんに理由が無いもの）、時刻の順がおかしい所、決まりごとに反する所、連絡らんと表の食いちがい（「休み」と書いてあるのに乗っている等）、1人だけの車や人数の偏り。問題が無ければ「気になる所はありませんでした」と書く。
 - 車の最大人数を超える乗せ方はしない。頼まれた変更で超えてしまうときは、頼まれたとおりにしたうえで questions で必ず知らせる。
+- 「利用予定」があるときは、それを正とする。予定の無い日に人を足すよう頼まれたら、頼まれたとおりにしたうえで questions で知らせる。
 - 言われていないことは変えない。曜日を言われなかったら、文の流れから分かる範囲だけにする。分からなければ questions に。
 - 「決まりごと」に反する変更を頼まれたら、頼まれたとおりにしたうえで questions で知らせる。
 - summary は「木曜：井上様をセレナ（送り）へ」のように、職員がそのまま確かめられる言葉で。
 - 変える所が何も無いとき（質問だけ・聞き取れない等）は ops を空にして、questions に聞き返しを書く。`;
 
-export function buildRequest({ week, roster, rules, instruction, weekLabel, pastInstructions, warnings }) {
+export function buildRequest({ week, roster, rules, instruction, weekLabel, pastInstructions, warnings, attendance }) {
   const people = (roster.people || []).map(p => p.name + (p.places.filter(Boolean).length ? `（${p.places.filter(Boolean).slice(0, 4).join('・')}）` : '')).join('、');
   const context = [
     `## 対象の週\n${weekLabel || week.weekStart}（曜日: ${Object.entries(DAY_NAMES).map(([n, d]) => `${n}=${d}`).join(' ')}）`,
@@ -88,6 +89,7 @@ export function buildRequest({ week, roster, rules, instruction, weekLabel, past
     `## 運転手\n${(roster.drivers || []).slice(0, 30).join('、') || '（不明）'}`,
     `## 決まりごと（毎週守ること）\n${(rules || []).length ? rules.map(r => '- ' + r).join('\n') : '（まだありません）'}`,
     (pastInstructions || []).length ? `## この週に、すでに伝えられて反映ずみのこと\n${pastInstructions.map(t => '- ' + t).join('\n')}` : '',
+    attendance ? `## この週の利用予定（利用記録兼シフトより。ここに無い人は、その日は利用しない）\n${attendance}` : '',
     (warnings || []).length ? `## いまの表で、つじつまが合っていない所（プログラムが見つけたもの）\n${warnings.map(t => '- ' + t).join('\n')}` : '',
     `## いまの送迎表\n${weekToText(week)}`
   ].filter(Boolean).join('\n\n');

@@ -15,6 +15,7 @@ import { currentWeekKey, shiftWeekKey, weekLongLabel, weekShortLabel } from '../
 import { escapeHtml } from '../core/html.js';
 import * as M from './model.js';
 import { buildDraft } from './draft.js';
+import { applyAttendance, checkAttendance, hasAttendance, expectedOn, attendanceToText } from './attendance.js';
 import { askAi } from './ai.js';
 import { voiceSupported, createVoice } from './voice.js';
 import { createBoard } from './board.js';
@@ -22,6 +23,7 @@ import { createBoard } from './board.js';
 const $ = id => document.getElementById(id);
 const weekPath = (fid, key) => `data/${fid}/weeks/${key}.json`;
 const rulesPath = fid => `data/${fid}/rules.json`;
+const attendancePath = (fid, key) => `data/${fid}/attendance/${key}.json`;
 const HISTORY_WEEKS = 8;
 /* 日曜にひらいたときは、翌日からの週を「今週」とする（currentWeekKey の決まり） */
 const thisWeek = () => currentWeekKey();
@@ -30,7 +32,7 @@ const nextWeek = () => shiftWeekKey(currentWeekKey(), 1);
 const app = {
   config: null, store: null, facilities: [], facility: null,
   weekKey: '', week: null, exists: false, dirty: false,
-  warnings: [], history: [], roster: { people: [], drivers: [], capacity: {} },
+  warnings: [], attendance: null, history: [], roster: { people: [], drivers: [], capacity: {} },
   rules: [], undo: [], preview: null, shas: new Map(), board: null
 };
 
@@ -76,7 +78,7 @@ function closeSheet() { $('shade').className = 'shade'; $('sheet').innerHTML = '
 /* ---------- 描きなおす ---------- */
 function draw() {
   const showing = app.preview ? app.preview.week : app.week;
-  const warnings = M.checkWeek(showing, app.roster);
+  const warnings = [...M.checkWeek(showing, app.roster), ...checkAttendance(showing, app.attendance)];
   app.board.render({ week: showing, warnings, changes: app.preview ? app.preview.changes : [], locked: !!app.preview, roster: app.roster });
   $('weeklabel').textContent = weekShortLabel(app.weekKey);
   /* 作るのは今週と来週だけ。どちらを開いているかを、ボタンの色で示す */
@@ -95,8 +97,10 @@ function draw() {
   w.textContent = `⚠ 矛盾 ${shown.length}`;
   $('rules').textContent = `決まりごと ${app.rules.length}`;
   w.onclick = () => {
-    const sheet = openSheet(`<h3>つじつまが合っていない所（${shown.length}）</h3><ul class="warnlist">${shown.map(x => `<li>${escapeHtml(x.text)}</li>`).join('')}</ul><div class="row"><div class="grow"></div><button class="btn2" data-close>とじる</button></div>`, { middle: true });
+    const sheet = openSheet(`<h3>つじつまが合っていない所（${shown.length}）</h3><ul class="warnlist">${shown.map(x => `<li>${escapeHtml(x.text)}</li>`).join('')}</ul><div class="row">${shown.some(x => x.kind) ? '<button class="btn2" data-fit type="button">利用予定に合わせて直す</button>' : ''}<div class="grow"></div><button class="btn2" data-close>とじる</button></div>`, { middle: true });
     sheet.querySelector('[data-close]').onclick = closeSheet;
+    const fitBtn = sheet.querySelector('[data-fit]');
+    if (fitBtn) fitBtn.onclick = () => { closeSheet(); fitToAttendance(); };
   };
   if (app.board.isFit) app.board.fit();
 }
@@ -125,12 +129,39 @@ async function loadHistory() {
     .filter(w => w && w.vans.length && M.DAY_NUMBERS.some(d => M.dayCounts(w, d).all));
 }
 
-function draftStrip(summary) {
+/* 利用予定に合わせた結果を、上の帯に出す言葉にする */
+function attendanceWords(r) {
+  if (!r || !r.used) return '';
+  const uniq = list => [...new Set(list.map(x => x.name))];
+  const names = list => uniq(list).slice(0, 8).map(n => escapeHtml(n) + '様').join('・') + (uniq(list).length > 8 ? ' ほか' : '');
+  let html = ` <b>利用予定（${escapeHtml(readAtLabel())}）に合わせました。</b>`;
+  if (r.added.length || r.moved.length) html += ` <i class="planned">緑わく</i>＝足した人・場所を直した人（${names([...r.added, ...r.moved])}）`;
+  if (r.removed.length) html += ` はずした人：${names(r.removed)}`;
+  if (r.unplaced.length) html += ` <b style="color:#a3261b">乗せる車が決まらない人：${names(r.unplaced)}</b>（「⚠ 矛盾」に出ています）`;
+  return html;
+}
+
+function readAtLabel() {
+  const t = app.attendance && app.attendance.readAt ? new Date(app.attendance.readAt) : null;
+  if (!t || isNaN(t)) return '読みこみ日時不明';
+  return `${t.getMonth() + 1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2, '0')} 読みこみ`;
+}
+
+/* いまの表を、利用予定に合わせて直す（「戻す」で元にもどせる） */
+function fitToAttendance() {
+  if (!hasAttendance(app.attendance)) { toast('この週の利用予定は、まだ読みこまれていません', 'warn'); return; }
+  const r = applyAttendance(app.week, app.attendance, [app.week, ...app.history]);
+  commit(r.week);
+  strip(attendanceWords(r).trim() || '利用予定と合っています。');
+}
+
+function draftStrip(summary, fitted) {
   if (!summary.copiedFrom) return strip('これまでの表がまだ無いので、空の表です。「⋯」から車を足して、人を入れてください。', 'warn');
   const names = list => [...new Set(list.map(x => x.name))].slice(0, 8).map(n => escapeHtml(n) + '様').join('・') + (new Set(list.map(x => x.name)).size > 8 ? ' ほか' : '');
   let html = `<b>${weekLongLabel(summary.copiedFrom)}</b> の表をもとに下書きを作りました。`;
   if (summary.restored.length) html += ` <i class="restored">青わく</i>＝先週お休みだったので戻した人（${names(summary.restored)}）`;
   if (summary.onlyLast.length) html += ` <i class="onlyLast">点線わく</i>＝先週だけ乗っていた人（${names(summary.onlyLast)}）`;
+  html += attendanceWords(fitted);
   html += ' 今週の事情は「AIに伝える」でどうぞ。';
   strip(html);
 }
@@ -140,11 +171,13 @@ async function openWeek(key) {
   app.undo = []; app.preview = null; $('confirm').classList.remove('show');
   strip('読みこんでいます…');
   try {
-    const [file, history, rules] = await Promise.all([
+    const [file, history, rules, attendance] = await Promise.all([
       readFile(weekPath(app.facility.id, key)),
       loadHistory(),
-      readFile(rulesPath(app.facility.id))
+      readFile(rulesPath(app.facility.id)),
+      app.store.readJson(attendancePath(app.facility.id, key)).then(f => (f ? f.data : null)).catch(() => null)
     ]);
+    app.attendance = attendance;
     app.history = history;
     app.rules = rules && Array.isArray(rules.rules) ? rules.rules.map(String) : [];
     app.exists = !!file;
@@ -154,9 +187,10 @@ async function openWeek(key) {
       strip('');
     } else {
       const draft = buildDraft({ facilityId: app.facility.id, weekStart: key, history });
-      app.week = draft.week;
+      const fitted = applyAttendance(draft.week, attendance, history);
+      app.week = fitted.week;
       app.dirty = !!draft.summary.copiedFrom;
-      draftStrip(draft.summary);
+      draftStrip(draft.summary, fitted);
     }
     app.roster = M.rosterFrom([app.week, ...history]);
     draw();
@@ -198,14 +232,22 @@ function riderSheet(pos, isNew) {
   /* 名簿の人を、押すだけで入れられるボタンにする。この便にまだ乗っていない人を先にならべる */
   const ridingNow = new Set();
   app.week.vans.forEach(v => app.week.days[pos.day].trips[v.id][pos.leg].rows.forEach(r => ridingNow.add(M.personKey(r.name))));
-  const people = app.roster.people.map(p => ({ ...p, riding: ridingNow.has(p.name) && p.name !== M.personKey(row.name) }))
-    .sort((a, b) => a.riding - b.riding);
+  /* 利用予定があるのに、この便にまだ乗っていない人をいちばん先に（色つきで）出す */
+  const planned = expectedOn(app.attendance, pos.day);
+  const wantsLeg = e => e && (pos.leg === 'out' ? e.out !== false : e.ret !== false);
+  const known = new Set(app.roster.people.map(p => p.name));
+  const extra = [...planned.keys()].filter(n => !known.has(n)).map(n => ({ name: n, places: [] }));
+  const people = [...app.roster.people, ...extra].map(p => ({ ...p,
+    riding: ridingNow.has(p.name) && p.name !== M.personKey(row.name),
+    planned: wantsLeg(planned.get(p.name)) && !ridingNow.has(p.name) }))
+    .sort((a, b) => (b.planned - a.planned) || (a.riding - b.riding));
   const places = [...new Set([...(person ? person.places : []), '自宅', ...app.roster.people.flatMap(p => p.places)])].filter(Boolean).slice(0, 10);
   const sheet = openSheet(`
     <h3>${M.DAY_NAMES[pos.day]}曜・${escapeHtml(van.name)}・${M.LEG_NAMES[pos.leg]}${isNew ? ' に人を足す' : ''}</h3>
     <label>利用者名</label>
     <input type="text" id="f-name" value="${escapeHtml(row.name)}" autocomplete="off">
-    <div class="quick people">${people.map(p => `<button type="button" data-person="${escapeHtml(p.name)}" class="${p.riding ? 'riding' : ''}">${escapeHtml(p.name)}</button>`).join('')}</div>
+    <div class="quick people">${people.map(p => `<button type="button" data-person="${escapeHtml(p.name)}" class="${p.riding ? 'riding' : p.planned ? 'planned' : ''}">${escapeHtml(p.name)}</button>`).join('')}</div>
+    ${people.some(p => p.planned) ? '<p class="mini">緑の方は、利用予定があるのに この便にまだ乗っていません。</p>' : ''}
     ${people.some(p => p.riding) ? '<p class="mini">うすい色の方は、この便ですでにどこかの車に乗っています。</p>' : ''}
     <label>乗る場所（自宅なら空でよい）</label>
     <input type="text" id="f-place" value="${escapeHtml(row.place)}" autocomplete="off">
@@ -280,7 +322,6 @@ function driverSheet(pos) {
 function notesSheet(day) {
   openSheet(`
     <h3>${M.DAY_NAMES[day]}曜の連絡</h3>
-    <p class="lead">1行に1つ書きます（例：井上様休み（病院受診））。</p>
     <textarea id="f-notes">${escapeHtml(app.week.days[day].notes.join('\n'))}</textarea>
     <div class="row"><div class="grow"></div><button class="btn2" id="f-cancel" type="button">やめる</button><button class="btn2 go" id="f-ok" type="button">決定</button></div>`, { middle: true });
   $('f-cancel').onclick = closeSheet;
@@ -373,7 +414,7 @@ function aiSheet(prefill = '') {
     try {
       const answer = await askAi({
         apiKey: app.config.aiKey, week: app.week, roster: app.roster, rules: app.rules, instruction: text,
-        weekLabel: weekLongLabel(app.weekKey), pastInstructions: (app.week.log || []).map(l => l.text), warnings: app.warnings
+        weekLabel: weekLongLabel(app.weekKey), pastInstructions: (app.week.log || []).map(l => l.text), warnings: app.warnings, attendance: attendanceToText(app.attendance)
       });
       closeSheet();
       showAnswer(text, answer);
@@ -454,6 +495,7 @@ function rulesSheet() {
 function menuSheet() {
   const sheet = openSheet(`<h3>その他</h3><div class="menu">
     <button type="button" data-a="print">印刷する（A4よこ1枚）</button>
+    <button type="button" data-a="fit">利用予定に合わせて直す${hasAttendance(app.attendance) ? `（${escapeHtml(readAtLabel())}）` : '（まだ読みこまれていません）'}</button>
     <button type="button" data-a="van">車を足す</button>
     <button type="button" data-a="rules">決まりごとを見る・直す（${app.rules.length}）</button>
     <button type="button" data-a="clear">この週を空にする</button>
@@ -465,6 +507,7 @@ function menuSheet() {
     if (!a) return;
     closeSheet();
     if (a.dataset.a === 'print') printWeek();
+    if (a.dataset.a === 'fit') fitToAttendance();
     if (a.dataset.a === 'van') vanSheet(null);
     if (a.dataset.a === 'rules') rulesSheet();
     if (a.dataset.a === 'clear' && window.confirm('この週の人・運転手・連絡をぜんぶ消します。よろしいですか？（「戻す」で元にもどせます）')) {
@@ -537,9 +580,10 @@ export async function start() {
     if (!app.history.length) { toast('もとにする、これまでの表がありません', 'warn'); return; }
     if (!window.confirm('これまでの表から、この週を自動で組みなおします。いまの内容は置きかわります（「戻す」で元にもどせます）。')) return;
     const draft = buildDraft({ facilityId: app.facility.id, weekStart: app.weekKey, history: app.history });
-    draft.week.log = [];
-    commit(draft.week);
-    draftStrip(draft.summary);
+    const fitted = applyAttendance(draft.week, app.attendance, app.history);
+    fitted.week.log = [];
+    commit(fitted.week);
+    draftStrip(draft.summary, fitted);
   };
 
   window.addEventListener('resize', refit);
