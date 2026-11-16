@@ -6,8 +6,8 @@
 # に置きます。
 #
 # やること：
-#   Dropbox の「利用記録兼シフト」の Excel を取りよせ、今週と来週の
-#   「だれが何曜日に利用するか」を data/<事業所>/attendance/ に書き出します。
+#   Dropbox の「利用記録兼シフト」の Excel を取りよせ、来週の
+#   「だれが何曜日に利用するか」を data/<事業所>/attendance/ に書き出します。今週のぶんは、もう完成しているのでさわりません。
 #   送迎表のアプリは、それを読んで下書きを利用予定に合わせます。
 #
 # 用意するもの（データ用リポジトリの Settings → Secrets and variables → Actions）：
@@ -64,7 +64,7 @@ jobs:
           failed = False
           for s in sources:
               print('==', s['facilityId'], s.get('title', ''))
-              r = subprocess.run([sys.executable, 'app/tools/import_attendance.py', '--dropbox', s['dropbox'], '--out', '.', '--facility', s['facilityId']])
+              r = subprocess.run([sys.executable, 'app/tools/import_attendance.py', '--dropbox', s['dropbox'], '--out', '.', '--facility', s['facilityId'], '--only-next'])
               failed = failed or r.returncode != 0
           sys.exit(1 if failed else 0)
           PY

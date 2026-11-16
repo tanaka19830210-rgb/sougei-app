@@ -10,6 +10,7 @@
   python3 tools/import_attendance.py --dropbox "id:xxxx" --out <データ用リポジトリ> --facility funny
 
 出力：<out>/data/<事業所>/attendance/<月曜の日付>.json を、今週と来週の2つ。
+--only-next を付けると来週の1つだけ（毎週月曜の自動の取りこみはこちら。今週の表はもう完成しているため）。
 本物のお名前が入るので、出力先は「非公開のデータ用リポジトリ」にしてください。
 
 シートの読みかた（月ごとのシート「202611」など）：
@@ -183,6 +184,7 @@ def main():
     ap.add_argument('--dropbox', help='Dropbox のファイルの id（id:xxxx）か、場所（/フォルダ/ファイル名）')
     ap.add_argument('--out', required=True)
     ap.add_argument('--facility', required=True)
+    ap.add_argument('--only-next', action='store_true', help='来週のぶんだけ読む（今週はさわらない）')
     ap.add_argument('--today', help='たしかめ用：今日の日付（YYYY-MM-DD）。ふつうは付けない')
     a = ap.parse_args()
 
@@ -193,7 +195,8 @@ def main():
         today += datetime.timedelta(days=1)
     monday = today - datetime.timedelta(days=today.weekday())
     source = a.xlsx if a.xlsx else dropbox_download(a.dropbox)
-    weeks = read_weeks(source, [monday, monday + datetime.timedelta(days=7)])
+    starts = [monday + datetime.timedelta(days=7)] if a.only_next else [monday, monday + datetime.timedelta(days=7)]
+    weeks = read_weeks(source, starts)
 
     folder = os.path.join(a.out, 'data', a.facility, 'attendance')
     os.makedirs(folder, exist_ok=True)
