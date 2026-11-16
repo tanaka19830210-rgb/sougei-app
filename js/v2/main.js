@@ -92,7 +92,7 @@ function draw() {
   $('save').classList.toggle('dirty', app.dirty);
   /* 保存するものが無いときは、「保存する」のまま灰色にして押せなくする */
   $('save').disabled = !app.dirty || !!app.preview;
-  ['ai','rules', 'prev', 'next', 'facility', 'share'].forEach(id => { $(id).disabled = !!app.preview; });
+  ['ai','rules', 'prev', 'next', 'facility', 'print', 'send'].forEach(id => { $(id).disabled = !!app.preview; });
   const w = $('warn');
   const shown = warnings.filter(x => !x.quiet);
   app.warnings = shown.map(x => x.text);
@@ -551,26 +551,7 @@ function fitForPaper() {
   app.board.setFontScale(app.board.measureFit(1060, 700));
 }
 
-/* ---------- 印刷・LINE WORKS へ送る ---------- */
-function shareSheet() {
-  const local = app.store.mode === 'local';
-  const sheet = openSheet(`<h3>印刷・送る</h3>
-    <p class="lead">${escapeHtml(app.facility.shortName || app.facility.name)}　${escapeHtml(weekLongLabel(app.weekKey))}</p>
-    <div class="menu">
-    <button type="button" data-a="print">印刷する（A4よこ1枚）</button>
-    <button type="button" data-a="send"${local ? ' disabled' : ''}>LINE WORKS のトークに、画像で送る</button>
-    </div>
-    <p class="mini">${local ? 'お試しモードでは送れません。' : '送るのは保存した内容です。2〜3分でトークに届きます。'}</p>
-    <div class="row"><div class="grow"></div><button class="btn2" data-a="close" type="button">とじる</button></div>`, { middle: true });
-  sheet.onclick = e => {
-    const a = e.target.closest('[data-a]');
-    if (!a || a.disabled) return;
-    closeSheet();
-    if (a.dataset.a === 'print') printWeek();
-    if (a.dataset.a === 'send') sendToLineWorks();
-  };
-}
-
+/* ---------- LINE WORKS へ送る ---------- */
 /* データ側に「送ってほしい」という小さなファイルを置く。それを合図に GitHub Actions が画像を作って送る */
 async function sendToLineWorks() {
   if (app.store.mode === 'local') { toast('お試しモードでは送れません', 'warn'); return; }
@@ -581,13 +562,13 @@ async function sendToLineWorks() {
   }
   if (!app.exists) { toast('この週は、まだ保存されていません。保存してから送ってください', 'warn'); return; }
   const name = app.facility.shortName || app.facility.name;
-  if (!window.confirm(`${name}の ${weekLongLabel(app.weekKey)} の送迎表を、画像にして LINE WORKS のトークへ送ります。よろしいですか？`)) return;
+  if (!window.confirm(`${name}の ${weekLongLabel(app.weekKey)} の送迎表を、画像にして LINE WORKS へ送ります。よろしいですか？`)) return;
   const request = createPublishRequest({ facility: app.facility, weekStart: app.weekKey, requestedBy: app.config.editorName || '' });
   const stamp = request.requestedAt.replace(/[-:]/g, '').replace(/\..+$/, '');
   const path = `publish-requests/${app.facility.id}-${app.weekKey}-${stamp}.json`;
   try {
     await app.store.writeJson(path, request, { message: `送迎表 ${name} ${app.weekKey}週 を LINE WORKS へ送る` });
-    toast('送る手配をしました。2〜3分でトークに届きます');
+    toast('送る手配をしました。2〜3分で LINE WORKS に届きます');
   } catch (e) {
     console.error(e);
     if (loginAgainIfNeeded(e)) return;
@@ -715,7 +696,8 @@ export async function start() {
   $('zout').onclick = () => app.board.zoom(0.8);
   $('zfit').onclick = () => app.board.fit();
   $('more').onclick = menuSheet;
-  $('share').onclick = shareSheet;
+  $('print').onclick = printWeek;
+  $('send').onclick = sendToLineWorks;
   $('ai').onclick = () => aiSheet('');
   $('rules').onclick = rulesSheet;
 

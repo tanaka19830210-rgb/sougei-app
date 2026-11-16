@@ -294,3 +294,10 @@ test('PNG：幅と高さを読み取れる。PNGでなければ null', () => {
   assert.deepEqual(pngSize(head), { width: 1588, height: 2246 });
   assert.equal(pngSize(Buffer.from('これは画像ではありません')), null);
 });
+
+test('配信：userId があれば、トークルームではなくその人へ1対1で送る', async () => {
+  const { c, calls } = client({ options: { userId: 'someone@works-0000000' } });
+  await c.publishImage({ fileName: 'soutai.png', bytes: Buffer.from('abc'), text: '送迎表ができました' });
+  assert.equal(calls[3].url, 'https://www.worksapis.com/v1.0/bots/2000001/users/someone@works-0000000/messages');
+  assert.equal(calls[4].url, calls[3].url);
+});
