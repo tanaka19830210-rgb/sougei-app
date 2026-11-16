@@ -19,7 +19,6 @@ import * as M from './model.js';
 import { buildDraft } from './draft.js';
 import { applyAttendance, checkAttendance, hasAttendance, expectedOn, attendanceToText } from './attendance.js';
 import { askAi } from './ai.js';
-import { voiceSupported, createVoice } from './voice.js';
 import { createBoard } from './board.js';
 import { createPublishRequest } from '../core/publishRequest.js';
 
@@ -375,18 +374,12 @@ function vanSheet(vanId) {
 }
 
 /* ---------- AI に伝える ---------- */
-let voice = null;
 const CHECK_TEXT = 'この週の表ぜんたいを点検してください。表は変えずに、矛盾している所・送迎ルールに反している所・気になる所を教えてください。';
 
 function aiSheet(prefill = '') {
-  const canHear = voiceSupported();
   openSheet(`
     <h3>今週の事情を伝える</h3>
-    ${canHear ? `<div class="talk">
-      <button class="mic" id="mic" type="button" aria-label="話す"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.9V21h2v-2.1A7 7 0 0019 12h-2z"/></svg></button>
-    </div>` : ''}
-    <textarea id="f-say" placeholder="ここに文字で打ってもかまいません">${escapeHtml(prefill)}</textarea>
-    <div class="interim" id="interim"></div>
+    <textarea id="f-say" class="say" placeholder="ここに打つか、キーボードのマイクで話してください">${escapeHtml(prefill)}</textarea>
     <label class="keep"><input type="checkbox" id="f-keep"> <b>これは毎週の送迎ルールとして覚える</b><span>（今週だけでなく、これからずっと守ること。例：「井上様は車椅子なのでハイエースに乗せる」）</span></label>
     <div class="busy" id="busy">AI が表を見ています…（10〜40秒ほど）</div>
     <div class="row">
@@ -396,23 +389,10 @@ function aiSheet(prefill = '') {
       <button class="btn2" id="f-cancel" type="button">とじる</button>
       <button class="btn2 go" id="f-send" type="button">伝える</button>
     </div>`);
-  const stopVoice = () => { if (voice) { voice.stop(); voice = null; } };
-  if (canHear) {
-    $('mic').onclick = () => {
-      if (voice && voice.listening) { stopVoice(); return; }
-      const before = $('f-say').value ? $('f-say').value.replace(/\s*$/, '') + '\n' : '';
-      voice = createVoice({
-        onText: (finalText, interim) => { if ($('f-say')) { $('f-say').value = finalText; $('interim').textContent = interim; } },
-        onState: (s, err) => { const mic = $('mic'); if (mic) mic.classList.toggle('on', s === 'listening'); if ($('interim') && s === 'idle') $('interim').textContent = ''; if (err) toast(err, 'warn'); }
-      });
-      voice.start(before);
-    };
-  }
-  $('f-cancel').onclick = () => { stopVoice(); closeSheet(); };
-  $('f-rules').onclick = () => { stopVoice(); rulesSheet(); };
+  $('f-cancel').onclick = closeSheet;
+  $('f-rules').onclick = rulesSheet;
   $('f-check').onclick = () => { $('f-say').value = CHECK_TEXT; $('f-keep').checked = false; $('f-send').click(); };
   $('f-send').onclick = async () => {
-    stopVoice();
     let text = $('f-say').value.trim();
     if (text && $('f-keep').checked) text = '【毎週の送迎ルール】' + text;
     if (!text) { toast('伝える内容を入れてください', 'warn'); return; }
