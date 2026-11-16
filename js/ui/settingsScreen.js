@@ -69,7 +69,7 @@ export async function start() {
   document.getElementById('pathlist').innerHTML = [
     paths.facilitiesPath(),
     `data/${fid}/weeks/2026-11-16.json（1週＝1ファイル）`,
-    `data/${fid}/rules.json（決まりごと）`
+    `data/${fid}/rules.json（送迎ルール）`
   ].map(p => `<li><code>${escapeHtml(p)}</code></li>`).join('');
 
   /* ---------- 保存 ---------- */
