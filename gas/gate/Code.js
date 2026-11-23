@@ -315,3 +315,50 @@ function write_(who, req) {
   var json = JSON.parse(res.getContentText());
   return { ok: true, path: req.path, sha: json.content && json.content.sha };
 }
+
+/* ============================================================
+   月曜の朝に、利用予定の取りこみ（データ用リポジトリの attendance.yml）を起こす
+
+   GitHub Actions の時刻指定（cron）は、遅れたり飛んだりすることがある（2026-11-23 に実際に飛んだ）。
+   そこで GAS の時計（時間主導トリガー）から、Actions の「Run workflow」と同じ頼みを送る。
+   取りこみの中身は Actions のまま。ここは「起こす」だけ。
+   来週のぶんだけを読む形なので、GitHub の時刻指定と二重に動いても結果は同じ。
+
+   使う鍵：GITHUB_ACTIONS_TOKEN があればそれ、無ければ GITHUB_TOKEN。
+           どちらも、データ用リポジトリの Actions を「Read and write」にしておく必要がある。
+
+   はじめに1回だけ、エディタで tsukuru_getsuyou_trigger を実行する（許可を求められたら許可する）。
+   試しに今すぐ起こしたいときは、エディタで okosu_torikomi を実行する。
+   ============================================================ */
+var KICK_WORKFLOW = 'attendance.yml';
+
+/* 毎週月曜 8時15分ごろに okosu_torikomi が動くようにする（前に作ったものは消してから作る） */
+function tsukuru_getsuyou_trigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'okosu_torikomi') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('okosu_torikomi').timeBased()
+    .onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(8).nearMinute(15)
+    .inTimezone('Asia/Tokyo').create();
+  Logger.log('毎週月曜 8時15分ごろに、利用予定の取りこみを起こすようにしました');
+}
+
+/* 利用予定の取りこみを起こす（Actions の「Run workflow」と同じ） */
+function okosu_torikomi() {
+  var repo = prop_('GITHUB_REPO');
+  var token = prop_('GITHUB_ACTIONS_TOKEN') || prop_('GITHUB_TOKEN');
+  if (!repo || !token) throw new Error('GITHUB_REPO と GITHUB_TOKEN が設定されていません');
+  var res = UrlFetchApp.fetch('https://api.github.com/repos/' + repo + '/actions/workflows/' + KICK_WORKFLOW + '/dispatches', {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ ref: branch_() }),
+    muteHttpExceptions: true,
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }
+  });
+  var code = res.getResponseCode();
+  if (code === 204) { Logger.log('利用予定の取りこみを起こしました（GitHub Actions で1〜2分かかります）'); return; }
+  if (code === 403 || code === 404) {
+    throw new Error('取りこみを起こせませんでした（' + code + '）。GitHub の鍵に、データ用リポジトリの Actions を「Read and write」で使う許可が要ります');
+  }
+  throw new Error('取りこみを起こせませんでした（' + code + '）：' + res.getContentText().slice(0, 200));
+}
