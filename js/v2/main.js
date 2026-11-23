@@ -229,27 +229,20 @@ async function save() {
   draw();
 }
 
-/* ---------- 時刻は「時」と「分（5分きざみ）」を選ぶ ----------
-   iPad や Android の時刻らんは 1分きざみのくるくるになるので、選ぶ形にする。
-   前に入っていた時刻が5分きざみでなければ、その分も選べるように足す（消さない） */
-const TIME_HOURS = Array.from({ length: 12 }, (_, i) => i + 7);              /* 7時〜18時 */
-const TIME_MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);            /* 00〜55 */
+/* ---------- 時刻は、1つの選択らんで5分きざみに選ぶ ----------
+   iPad や Android の時刻らん（input type=time）は、step を付けても1分きざみのくるくるになる。
+   そこで 7:00〜18:55 を5分ごとにならべた選択らんにする（押すと、くるくる1本で選べる）。
+   前に入っていた時刻が5分きざみでなければ、その時刻も選べるように足す（消さない） */
 const pad2 = n => String(n).padStart(2, '0');
+const TIME_CHOICES = Array.from({ length: 12 * 12 }, (_, i) => `${pad2(7 + Math.floor(i / 12))}:${pad2((i % 12) * 5)}`);
 function timePickerHtml(time) {
   const t = M.normTime(time) || '';
-  const [h, m] = t ? t.split(':').map(Number) : [NaN, NaN];
-  const hours = [...new Set([...TIME_HOURS, ...(Number.isFinite(h) ? [h] : [])])].sort((a, b) => a - b);
-  const mins = [...new Set([...TIME_MINUTES, ...(Number.isFinite(m) ? [m] : [])])].sort((a, b) => a - b);
-  const opt = (v, sel, text) => `<option value="${v}"${sel ? ' selected' : ''}>${text}</option>`;
-  return `<div class="timepick">
-      <select id="f-hour" aria-label="時">${opt('', !Number.isFinite(h), '--')}${hours.map(x => opt(x, x === h, x + '時')).join('')}</select>
-      <select id="f-min" aria-label="分">${opt('', !Number.isFinite(m), '--')}${mins.map(x => opt(x, x === m, pad2(x) + '分')).join('')}</select>
-    </div>`;
+  const list = t && !TIME_CHOICES.includes(t) ? [...TIME_CHOICES, t].sort() : TIME_CHOICES;
+  const label = v => v.replace(/^0/, '');
+  return `<select id="f-time" class="timepick" aria-label="時刻"><option value=""${t ? '' : ' selected'}>--:--</option>${list.map(v => `<option value="${v}"${v === t ? ' selected' : ''}>${label(v)}</option>`).join('')}</select>`;
 }
 function readTimePicker() {
-  const h = $('f-hour').value, m = $('f-min').value;
-  if (h === '') return '';
-  return `${pad2(h)}:${pad2(m === '' ? 0 : m)}`;
+  return $('f-time').value || '';
 }
 
 /* ---------- 人・運転手・連絡・車を直す入力らん ---------- */

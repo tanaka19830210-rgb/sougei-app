@@ -145,8 +145,7 @@ body.dragging #bin{display:block;}
 .sheet p.lead{margin:0 0 10px;font-size:14px;color:var(--sub);line-height:1.6;}
 .sheet label{display:block;font-size:13px;color:var(--sub);margin:10px 0 3px;}
 .sheet input[type=text],.sheet input[type=time],.sheet textarea{width:100%;font:inherit;font-size:18px;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:#fff;}
-.timepick{display:flex;gap:10px;}
-.timepick select{flex:1;font:inherit;font-size:20px;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:#fff;color:var(--text);}
+select.timepick{width:100%;font:inherit;font-size:20px;padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:#fff;color:var(--text);}
 .sheet textarea{min-height:130px;line-height:1.6;resize:vertical;}
 .sheet .row{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap;}
 .sheet .row .grow{flex:1;}
