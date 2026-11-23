@@ -26,6 +26,8 @@ function makeGate({ access, files = {}, tokens = {} } = {}) {
   const repo = new Map(Object.entries(files).map(([p, data], i) => [p, { text: JSON.stringify(data), sha: 'sha' + i }]));
   const log = [];
   const cache = new Map();
+  const kick = { code: 204 };
+  const logged = [];
   const response =(code, body) => ({ getResponseCode: () => code, getContentText: () => (typeof body === 'string' ? body : JSON.stringify(body)) });
 
   function github(req) {
@@ -73,17 +75,22 @@ function makeGate({ access, files = {}, tokens = {} } = {}) {
           log.push({ ...params, url });
           return response(200, { content: [{ type: 'tool_use', name: 'x', input: {} }], stop_reason: 'tool_use' });
         }
+        if (url.includes('/actions/workflows/')) {
+          log.push({ ...params, url });
+          return response(kick.code, kick.code === 204 ? '' : { message: 'x' });
+        }
         return github({ ...params, url });
       },
       fetchAll: reqs => reqs.map(github)
-    }
+    },
+    Logger: { log: text => logged.push(String(text)) }
   };
   vm.createContext(sandbox);
   vm.runInContext(CODE, sandbox);
   const post = body => JSON.parse(sandbox.doPost({ postData: { contents: JSON.stringify(body) } }).text);
   /* アプリから見た「通信」。番人の返事をそのまま返す */
   const fetchImpl = async (url, init) => ({ text: async () => JSON.stringify(post(JSON.parse(init.body))) });
-  return { post, fetchImpl, repo, log, props };
+  return { post, fetchImpl, repo, log, props, sandbox, kick, logged };
 }
 
 const goodToken = email => ({ aud: CLIENT_ID, email, email_verified: 'true', exp: String(Math.floor(Date.now() / 1000) + 600) });
@@ -300,4 +307,24 @@ test('アプリ：ログインしなおしたら、同じ画面のまま新し�
   current = out.session;   /* 別のタブでログインしなおした */
   const saved = await store.writeJson('data/funny/weeks/2026-11-23.json', { a: 1 });
   assert.ok(saved.sha);
+});
+
+test('GAS：月曜の朝に、利用予定の取りこみ（attendance.yml）を起こす', () => {
+  const gate = makeGate();
+  gate.sandbox.okosu_torikomi();
+  const sent = gate.log[gate.log.length - 1];
+  assert.equal(sent.url, 'https://api.github.com/repos/someone/some-data/actions/workflows/attendance.yml/dispatches');
+  assert.equal(sent.method, 'post');
+  assert.equal(sent.headers.Authorization, 'Bearer ghp_dummy');
+  assert.deepEqual(JSON.parse(sent.payload), { ref: 'main' });
+  assert.match(gate.logged.join('\n'), /起こしました/);
+
+  /* 起こす専用の鍵があれば、そちらを使う */
+  gate.props.GITHUB_ACTIONS_TOKEN = 'ghp_actions';
+  gate.sandbox.okosu_torikomi();
+  assert.equal(gate.log[gate.log.length - 1].headers.Authorization, 'Bearer ghp_actions');
+
+  /* 鍵に Actions の許可が無いときは、何が要るかを言って止まる（トリガーの失敗メールで気づける） */
+  gate.kick.code = 403;
+  assert.throws(() => gate.sandbox.okosu_torikomi(), /Actions を「Read and write」/);
 });
