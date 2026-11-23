@@ -10,7 +10,7 @@ input,textarea{-webkit-user-select:text;user-select:text;}
 
 /* ---------- 上の帯 ---------- */
 .bar{background:var(--green);color:#fff;display:flex;align-items:center;gap:4px;padding:5px 8px;flex:none;overflow-x:auto;}
-.tb#warn{background:#d6453a;font-weight:700;}
+.tb#warn{background:#f5c518;color:#3a2a00;font-weight:700;}
 .bar .name{font-weight:700;font-size:16px;margin-right:2px;white-space:nowrap;}
 .bar select{font:inherit;font-size:15px;font-weight:700;border:none;border-radius:8px;padding:8px 6px;background:rgba(255,255,255,.18);color:#fff;min-height:40px;}
 .bar select option{color:#333;}
@@ -78,7 +78,7 @@ input,textarea{-webkit-user-select:text;user-select:text;}
 .cell.ret.alt{background:#d3e5f7;}
 .cell.over{outline:.16em solid var(--green);outline-offset:-.16em;background:var(--green-pale);}
 .cell.changed{background:#fff38f !important;}
-.cell.warn .drv i{background:#d6453a;}
+.cell.warn .drv i{background:#e0a800;}
 
 .drv{display:flex;align-items:center;gap:.3em;font-size:.86em;color:var(--sub);cursor:pointer;line-height:1.45;}
 .drv i{font-style:normal;font-weight:700;color:#fff;background:#e08a00;border-radius:.3em;padding:0 .3em;font-size:.92em;}
@@ -105,7 +105,7 @@ input,textarea{-webkit-user-select:text;user-select:text;}
 .chip.restored{box-shadow:0 0 0 .14em #2f6fd0 inset;border-color:#2f6fd0;}
 .chip.onlyLast{box-shadow:0 0 0 .14em #c98a00 inset;border-color:#c98a00;border-style:dashed;}
 .chip.changed{background:#ffe08a;border-color:#e2b100;font-weight:700;}
-.chip.warn{border-color:#d6453a;box-shadow:0 0 0 1px #d6453a inset;}
+.chip.warn{border-color:#e0a800;box-shadow:0 0 0 1px #e0a800 inset;}
 .chip.lifted{opacity:.25;}
 .chip.gap{margin-top:.75em;box-shadow:0 -.4em 0 -.15em var(--green);}
 .chip.fly{position:fixed;left:0;top:0;z-index:999;pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,.3);transform-origin:0 0;border-color:var(--green);background:#fff;}
@@ -183,7 +183,7 @@ body.dragging #bin{display:block;}
   .drv .add,.notecell p.none,.drv span.none{visibility:hidden;}
   .chip{border-color:#bbb;}
   .chip.restored,.chip.onlyLast,.chip.planned{box-shadow:none;border-style:solid;}
-  /* 矛盾の赤わくは、印刷と LINE WORKS の画像には出さない */
+  /* 注意の黄色いわくは、印刷と LINE WORKS の画像には出さない */
   .chip.warn{border-color:#bbb;box-shadow:none;}
   .cell.warn .drv i{background:#e08a00;}
   .cell.ret.warn .drv i{background:#3f7fc0;}

@@ -96,10 +96,10 @@ function draw() {
   const shown = warnings.filter(x => !x.quiet);
   app.warnings = shown.map(x => x.text);
   w.hidden = !shown.length;
-  w.textContent = `⚠ 矛盾 ${shown.length}`;
+  w.textContent = `⚠ 注意 ${shown.length}`;
   $('rules').textContent = `送迎ルール ${app.rules.length}`;
   w.onclick = () => {
-    const sheet = openSheet(`<h3>つじつまが合っていない所（${shown.length}）</h3><ul class="warnlist">${shown.map(x => `<li>${escapeHtml(x.text)}</li>`).join('')}</ul><div class="row">${shown.some(x => x.kind) ? '<button class="btn2" data-fit type="button">利用予定に合わせて直す</button>' : ''}<div class="grow"></div><button class="btn2" data-close>とじる</button></div>`, { middle: true });
+    const sheet = openSheet(`<h3>注意するところ（${shown.length}）</h3><ul class="warnlist">${shown.map(x => `<li>${escapeHtml(x.text)}</li>`).join('')}</ul><div class="row">${shown.some(x => x.kind) ? '<button class="btn2" data-fit type="button">利用予定に合わせて直す</button>' : ''}<div class="grow"></div><button class="btn2" data-close>とじる</button></div>`, { middle: true });
     sheet.querySelector('[data-close]').onclick = closeSheet;
     const fitBtn = sheet.querySelector('[data-fit]');
     if (fitBtn) fitBtn.onclick = () => { closeSheet(); fitToAttendance(); };
@@ -140,7 +140,7 @@ function attendanceWords(r) {
   const lines = [`<b>利用予定（${escapeHtml(readAtLabel())}）に合わせました。</b>`];
   if (r.added.length || r.moved.length) lines.push(`<i class="planned">緑わく</i>＝足した人・場所を直した人（${names([...r.added, ...r.moved])}）`);
   if (r.removed.length) lines.push(`はずした人：${names(r.removed)}`);
-  if (r.unplaced.length) lines.push(`<b style="color:#a3261b">乗せる車が決まらない人：${names(r.unplaced)}</b>（「⚠ 矛盾」に出ています）`);
+  if (r.unplaced.length) lines.push(`<b style="color:#a3261b">乗せる車が決まらない人：${names(r.unplaced)}</b>（「⚠ 注意」に出ています）`);
   return lines.join('<br>');
 }
 
@@ -352,7 +352,7 @@ function vanSheet(vanId) {
     <label>最大の乗車人数（利用者が何人まで乗れるか）</label>
     <input type="text" inputmode="numeric" id="f-seats" value="${van && van.seats ? van.seats : ''}" placeholder="${van && M.seatsOf(van, app.roster).seats ? 'まだ決めていません（これまでの最大は ' + M.seatsOf(van, app.roster).seats + '人）' : '例：6'}" autocomplete="off">
     <div class="quick">${[2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-seats="${n}">${n}人</button>`).join('')}</div>
-    <p class="lead" style="margin-top:8px;">決めた人数は、次の週の下書きにも引きつがれます。超えると「⚠ 矛盾」で知らせます。</p>
+    <p class="lead" style="margin-top:8px;">決めた人数は、次の週の下書きにも引きつがれます。超えると「⚠ 注意」で知らせます。</p>
     <div class="row">${van ? `<button class="btn2 danger" id="f-del" type="button" ${used ? 'disabled title="人が乗っているので消せません"' : ''}>この車を消す</button>` : ''}
     <div class="grow"></div><button class="btn2" id="f-cancel" type="button">やめる</button><button class="btn2 go" id="f-ok" type="button">決定</button></div>`, { middle: true });
   $('f-cancel').onclick = closeSheet;
