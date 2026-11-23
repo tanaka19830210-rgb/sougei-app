@@ -146,26 +146,40 @@ export function dayCounts(week, day) {
 /* ---------- これまでの表から「名簿」を読みとる ---------- */
 export function rosterFrom(weeks) {
   const people = new Map(), drivers = new Map(), capacity = new Map();
-  weeks.forEach(week => eachTrip(week, ({ van, trip }) => {
+  const count = (map, key) => map.set(key, (map.get(key) || 0) + 1);
+  const ranked = map => [...map.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  weeks.forEach(week => eachTrip(week, ({ van, leg, trip }) => {
     const vn = normText(van.name);
     capacity.set(vn, Math.max(capacity.get(vn) || 0, trip.rows.length));
     if (trip.driver) drivers.set(trip.driver, (drivers.get(trip.driver) || 0) + 1);
     trip.rows.forEach(row => {
       const key = personKey(row.name);
-      if (!people.has(key)) people.set(key, { name: key, places: new Map() });
-      const places = people.get(key).places;
-      places.set(row.place, (places.get(row.place) || 0) + 1);
+      if (!people.has(key)) people.set(key, { name: key, places: new Map(), out: new Map(), ret: new Map() });
+      const p = people.get(key);
+      count(p.places, row.place);
+      count(p[leg], row.place);
     });
   }));
   return {
     people: [...people.values()]
       /* 「A→B」「○○様の車いす」のような書きこみは、人の名前ではないので名簿に入れない */
       .filter(p => !/[→⇒＞>\/様]/.test(p.name) && p.name.length <= 6)
-      .map(p => ({ name: p.name, places: [...p.places.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]) }))
+      .map(p => ({ name: p.name, places: ranked(p.places), placesByLeg: { out: ranked(p.out), ret: ranked(p.ret) } }))
       .sort((a, b) => a.name.localeCompare(b.name, 'ja')),
     drivers: [...drivers.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]),
     capacity: Object.fromEntries(capacity)
   };
+}
+
+/*
+  人を選んだときに「乗る場所」へ最初に入れる言葉。
+  その便（迎え・送り）でいちばん多い場所。これまで空（＝家）が多い人や、はじめての人は「自宅」。
+*/
+export function usualPlace(roster, name, leg) {
+  const p = ((roster && roster.people) || []).find(x => x.name === personKey(name));
+  if (!p) return '自宅';
+  const list = (p.placesByLeg && p.placesByLeg[leg] && p.placesByLeg[leg].length) ? p.placesByLeg[leg] : (p.places || []);
+  return list[0] || '自宅';
 }
 
 /* ============================================================

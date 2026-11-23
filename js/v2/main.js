@@ -229,6 +229,29 @@ async function save() {
   draw();
 }
 
+/* ---------- 時刻は「時」と「分（5分きざみ）」を選ぶ ----------
+   iPad や Android の時刻らんは 1分きざみのくるくるになるので、選ぶ形にする。
+   前に入っていた時刻が5分きざみでなければ、その分も選べるように足す（消さない） */
+const TIME_HOURS = Array.from({ length: 12 }, (_, i) => i + 7);              /* 7時〜18時 */
+const TIME_MINUTES = Array.from({ length: 12 }, (_, i) => i * 5);            /* 00〜55 */
+const pad2 = n => String(n).padStart(2, '0');
+function timePickerHtml(time) {
+  const t = M.normTime(time) || '';
+  const [h, m] = t ? t.split(':').map(Number) : [NaN, NaN];
+  const hours = [...new Set([...TIME_HOURS, ...(Number.isFinite(h) ? [h] : [])])].sort((a, b) => a - b);
+  const mins = [...new Set([...TIME_MINUTES, ...(Number.isFinite(m) ? [m] : [])])].sort((a, b) => a - b);
+  const opt = (v, sel, text) => `<option value="${v}"${sel ? ' selected' : ''}>${text}</option>`;
+  return `<div class="timepick">
+      <select id="f-hour" aria-label="時">${opt('', !Number.isFinite(h), '--')}${hours.map(x => opt(x, x === h, x + '時')).join('')}</select>
+      <select id="f-min" aria-label="分">${opt('', !Number.isFinite(m), '--')}${mins.map(x => opt(x, x === m, pad2(x) + '分')).join('')}</select>
+    </div>`;
+}
+function readTimePicker() {
+  const h = $('f-hour').value, m = $('f-min').value;
+  if (h === '') return '';
+  return `${pad2(h)}:${pad2(m === '' ? 0 : m)}`;
+}
+
 /* ---------- 人・運転手・連絡・車を直す入力らん ---------- */
 function riderSheet(pos, isNew) {
   const trip = app.week.days[pos.day].trips[pos.vanId][pos.leg];
@@ -255,25 +278,29 @@ function riderSheet(pos, isNew) {
     <div class="quick people">${people.map(p => `<button type="button" data-person="${escapeHtml(p.name)}" class="${p.riding ? 'riding' : p.planned ? 'planned' : ''}">${escapeHtml(p.name)}</button>`).join('')}</div>
     ${people.some(p => p.planned) ? '<p class="mini">緑の方は、利用予定があるのに この便にまだ乗っていません。</p>' : ''}
     ${people.some(p => p.riding) ? '<p class="mini">うすい色の方は、この便ですでにどこかの車に乗っています。</p>' : ''}
-    <label>乗る場所（自宅なら空でよい）</label>
+    <label>乗る場所</label>
     <input type="text" id="f-place" value="${escapeHtml(row.place)}" autocomplete="off">
     <div class="quick">${places.map(p => `<button type="button" data-place="${escapeHtml(p)}">${escapeHtml(p)}</button>`).join('')}</div>
     <label>時刻</label>
-    <input type="time" id="f-time" value="${row.time}" step="300">
+    ${timePickerHtml(row.time)}
     <div class="row">
       ${isNew ? '' : '<button class="btn2 danger" id="f-del" type="button">はずす</button>'}
       <div class="grow"></div>
       <button class="btn2" id="f-cancel" type="button">やめる</button>
       <button class="btn2 go" id="f-ok" type="button">決定</button>
     </div>`, { middle: true });
-  sheet.querySelectorAll('[data-place]').forEach(b => { b.onclick = () => { $('f-place').value = b.dataset.place === '自宅' && !row.place ? '自宅' : b.dataset.place; }; });
+  /* 乗る場所は、自分で打つか場所のボタンを押すまでは、選んだ人に合わせて入れかえる
+     （前に選んだ人の場所が残らないように）。その便でいちばん多い場所、無ければ「自宅」 */
+  let placeTouched = false;
+  const followPerson = name => { if (!placeTouched && name) $('f-place').value = M.usualPlace(app.roster, name, pos.leg); };
+  $('f-place').oninput = () => { placeTouched = true; };
+  sheet.querySelectorAll('[data-place]').forEach(b => { b.onclick = () => { placeTouched = true; $('f-place').value = b.dataset.place; }; });
   sheet.querySelectorAll('[data-person]').forEach(b => { b.onclick = () => {
     $('f-name').value = b.dataset.person;
-    /* 乗る場所がまだ空なら、その人がいちばんよく乗る場所を入れておく（あとで直せる） */
-    const p = app.roster.people.find(x => x.name === b.dataset.person);
-    if (isNew && p && !$('f-place').value) $('f-place').value = p.places[0] || '';
+    followPerson(b.dataset.person);
     sheet.querySelectorAll('[data-person]').forEach(x => x.classList.toggle('on', x === b));
   }; });
+  $('f-name').onchange = () => followPerson(M.personKey($('f-name').value));
   $('f-cancel').onclick = closeSheet;
   if (!isNew) $('f-del').onclick = () => { closeSheet(); removeAt(pos); };
   $('f-ok').onclick = () => {
@@ -281,7 +308,7 @@ function riderSheet(pos, isNew) {
     if (!name) { toast('利用者名を入れてください', 'warn'); return; }
     const next = M.clone(app.week);
     const rows = next.days[pos.day].trips[pos.vanId][pos.leg].rows;
-    const value = { name, place: $('f-place').value.trim(), time: M.normTime($('f-time').value) };
+    const value = { name, place: $('f-place').value.trim(), time: readTimePicker() };
     if (isNew && M.isFull(next, pos.vanId, pos.day, pos.leg)) { toast('その便は満席です', 'warn'); return; }
     if (isNew) {
       const at = value.time ? rows.findIndex(r => r.time && r.time > value.time) : -1;

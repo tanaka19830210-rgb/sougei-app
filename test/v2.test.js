@@ -236,3 +236,19 @@ test('満席：枠の数＝最大人数。満席の車へは、命令でも利�
   assert.deepEqual(fitted.unplaced.map(u => u.name + u.leg), ['藤本out']);
   assert.equal(names(fitted.week, 1, 'v1', 'out'), '井上,岡田');
 });
+
+test('乗る場所の初期値：その便でいちばん多い場所。家（空）が多い人・はじめての人は「自宅」', () => {
+  const w = week('2026-11-16', x => {
+    put(x, 1, 'v1', 'out', '森本', '08:30', 'ホームA'); put(x, 2, 'v1', 'out', '森本', '08:30', 'ホームA');
+    put(x, 1, 'v1', 'ret', '森本', '15:30', '');         /* 送りは家 */
+    put(x, 1, 'v2', 'out', '川口', '08:40', '');         /* いつも家 */
+    put(x, 2, 'v2', 'out', '川口', '08:40', '');
+    put(x, 3, 'v2', 'out', '川口', '08:40', 'ホームB');
+  });
+  const roster = M.rosterFrom([w]);
+  assert.equal(M.usualPlace(roster, '森本', 'out'), 'ホームA');
+  assert.equal(M.usualPlace(roster, '森本', 'ret'), '自宅', '送りは家なので「自宅」');
+  assert.equal(M.usualPlace(roster, '川口', 'out'), '自宅', 'いちばん多いのが家なら「自宅」');
+  assert.equal(M.usualPlace(roster, '川口', 'ret'), '自宅', '送りに乗ったことが無ければ、ほかの便の場所（家）');
+  assert.equal(M.usualPlace(roster, 'はじめて', 'out'), '自宅');
+});
