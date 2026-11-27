@@ -301,3 +301,24 @@ test('配信：userId があれば、トークルームではなくその人へ1
   assert.equal(calls[3].url, 'https://www.worksapis.com/v1.0/bots/2000001/users/someone@works-0000000/messages');
   assert.equal(calls[4].url, calls[3].url);
 });
+
+/* ---------- 失敗の知らせ ---------- */
+import { alertText, alertTarget, argOf } from '../tools/publish/alert.js';
+
+test('失敗の知らせ：何が・いつ失敗したか、理由と詳しい場所が分かる文になる', () => {
+  const text = alertText({ title: '月曜の利用予定の取りこみ', detail: 'Dropbox につながりませんでした', url: 'https://example.com/run/1', now: new Date('2026-11-29T23:16:00Z') });
+  assert.match(text, /^【送迎表】月曜の利用予定の取りこみが失敗しました（11\/30 08:16）/);
+  assert.match(text, /Dropbox につながりませんでした/);
+  assert.match(text, /詳しくは：https:\/\/example.com\/run\/1$/);
+  assert.ok(alertText({ title: 'x', detail: 'あ'.repeat(1000) }).length < 700, '長い理由は切る');
+  assert.ok(!alertText({ title: 'x' }).includes('詳しくは'), 'URL が無ければ書かない');
+});
+
+test('失敗の知らせ：送り先は 1対1 ＞ トークルーム ＞ 共通のトーク', () => {
+  assert.deepEqual(alertTarget({ lwUserId: 'a@works', lwChannelId: 'ch' }, { LW_CHANNEL_ID: 'common' }), { userId: 'a@works', channelId: '' });
+  assert.deepEqual(alertTarget({ lwUserId: '', lwChannelId: 'ch' }, { LW_CHANNEL_ID: 'common' }), { channelId: 'ch' });
+  assert.deepEqual(alertTarget(null, { LW_CHANNEL_ID: 'common' }), { channelId: 'common' });
+  assert.equal(alertTarget(null, {}), null);
+  assert.equal(argOf(['--title', 'x', '--url', 'y'], 'url'), 'y');
+  assert.equal(argOf(['--title'], 'title'), '');
+});
