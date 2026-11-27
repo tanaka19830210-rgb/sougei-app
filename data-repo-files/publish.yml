@@ -75,7 +75,9 @@ jobs:
           LW_PRIVATE_KEY: ${{ secrets.LW_PRIVATE_KEY }}
           LW_BOT_ID: ${{ secrets.LW_BOT_ID }}
           LW_CHANNEL_ID: ${{ secrets.LW_CHANNEL_ID }}
-        run: node run.js
+        run: |
+          set -o pipefail
+          node run.js 2>&1 | tee "$RUNNER_TEMP/publish.log"
 
       # 画像には利用者のお名前が全部写ります。
       # うまくいったときまで残すと、このリポジトリを見られる人は
@@ -108,3 +110,18 @@ jobs:
             done
             echo "保存できませんでした"; exit 1
           fi
+
+      # どこかで失敗したら、LINE WORKS で知らせる（送り先はデータ側の data/alerts.json）
+      - name: 失敗を LINE WORKS で知らせる
+        if: failure()
+        env:
+          DATA_DIR: ${{ github.workspace }}
+          LW_CLIENT_ID: ${{ secrets.LW_CLIENT_ID }}
+          LW_CLIENT_SECRET: ${{ secrets.LW_CLIENT_SECRET }}
+          LW_SERVICE_ACCOUNT: ${{ secrets.LW_SERVICE_ACCOUNT }}
+          LW_PRIVATE_KEY: ${{ secrets.LW_PRIVATE_KEY }}
+          LW_BOT_ID: ${{ secrets.LW_BOT_ID }}
+          LW_CHANNEL_ID: ${{ secrets.LW_CHANNEL_ID }}
+        run: |
+          grep -E "できませんでした|失敗|足りません|見つかりません|止まりました" "$RUNNER_TEMP/publish.log" 2>/dev/null | tail -5 > "$RUNNER_TEMP/detail.txt" || true
+          node app/tools/publish/send-alert.js --title "LINE WORKS への送迎表の送信" --url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --detail-file "$RUNNER_TEMP/detail.txt"
