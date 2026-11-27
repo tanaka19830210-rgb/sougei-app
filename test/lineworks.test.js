@@ -303,7 +303,7 @@ test('配信：userId があれば、トークルームではなくその人へ1
 });
 
 /* ---------- 失敗の知らせ ---------- */
-import { alertText, alertTarget, argOf } from '../tools/publish/alert.js';
+import { alertText, alertTargets, argOf } from '../tools/publish/alert.js';
 
 test('失敗の知らせ：何が・いつ失敗したか、理由と詳しい場所が分かる文になる', () => {
   const text = alertText({ title: '月曜の利用予定の取りこみ', detail: 'Dropbox につながりませんでした', url: 'https://example.com/run/1', now: new Date('2026-11-29T23:16:00Z') });
@@ -314,11 +314,16 @@ test('失敗の知らせ：何が・いつ失敗したか、理由と詳しい�
   assert.ok(!alertText({ title: 'x' }).includes('詳しくは'), 'URL が無ければ書かない');
 });
 
-test('失敗の知らせ：送り先は 1対1 ＞ トークルーム ＞ 共通のトーク', () => {
-  assert.deepEqual(alertTarget({ lwUserId: 'a@works', lwChannelId: 'ch' }, { LW_CHANNEL_ID: 'common' }), { userId: 'a@works', channelId: '' });
-  assert.deepEqual(alertTarget({ lwUserId: '', lwChannelId: 'ch' }, { LW_CHANNEL_ID: 'common' }), { channelId: 'ch' });
-  assert.deepEqual(alertTarget(null, { LW_CHANNEL_ID: 'common' }), { channelId: 'common' });
-  assert.equal(alertTarget(null, {}), null);
+test('失敗の知らせ：送り先は 1対1（何人でも）＞ トークルーム ＞ 共通のトーク。種類ごとに変えられる', () => {
+  const common = { LW_CHANNEL_ID: 'common' };
+  assert.deepEqual(alertTargets({ lwUserIds: ['a@works', 'b@works', 'a@works'] }, common), [{ userId: 'a@works', channelId: '' }, { userId: 'b@works', channelId: '' }], '同じ人は1回だけ');
+  assert.deepEqual(alertTargets({ lwUserId: 'a@works' }, common), [{ userId: 'a@works', channelId: '' }], '古い書き方も使える');
+  assert.deepEqual(alertTargets({ lwChannelId: 'ch' }, common), [{ channelId: 'ch' }]);
+  assert.deepEqual(alertTargets(null, common), [{ channelId: 'common' }]);
+  assert.deepEqual(alertTargets(null, {}), []);
+  const alerts = { lwUserIds: ['a@works'], attendance: { lwUserIds: ['b@works', 'a@works'] } };
+  assert.deepEqual(alertTargets(alerts, common, 'attendance').map(t => t.userId), ['b@works', 'a@works'], '取りこみは2人へ');
+  assert.deepEqual(alertTargets(alerts, common, 'publish').map(t => t.userId), ['a@works'], '種類の決まりが無ければ、ふだんの送り先');
   assert.equal(argOf(['--title', 'x', '--url', 'y'], 'url'), 'y');
   assert.equal(argOf(['--title'], 'title'), '');
 });

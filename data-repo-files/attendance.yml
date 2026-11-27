@@ -111,7 +111,7 @@ jobs:
           LW_CHANNEL_ID: ${{ secrets.LW_CHANNEL_ID }}
         run: |
           grep -vE "^==|書き出しました" "$RUNNER_TEMP/attendance.log" 2>/dev/null | tail -5 > "$RUNNER_TEMP/detail.txt" || true
-          node app/tools/publish/send-alert.js --title "月曜の利用予定の取りこみ" --url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --detail-file "$RUNNER_TEMP/detail.txt"
+          node app/tools/publish/send-alert.js --kind attendance --title "月曜の利用予定の取りこみ" --url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --detail-file "$RUNNER_TEMP/detail.txt"
 
       - name: 失敗の知らせを試しに送る（手で動かして、試すを選んだときだけ）
         if: ${{ inputs.shirase_test }}
@@ -123,4 +123,4 @@ jobs:
           LW_PRIVATE_KEY: ${{ secrets.LW_PRIVATE_KEY }}
           LW_BOT_ID: ${{ secrets.LW_BOT_ID }}
           LW_CHANNEL_ID: ${{ secrets.LW_CHANNEL_ID }}
-        run: node app/tools/publish/send-alert.js --title "月曜の利用予定の取りこみ" --test
+        run: node app/tools/publish/send-alert.js --kind attendance --title "月曜の利用予定の取りこみ" --test
