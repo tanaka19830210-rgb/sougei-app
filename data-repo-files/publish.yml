@@ -124,4 +124,4 @@ jobs:
           LW_CHANNEL_ID: ${{ secrets.LW_CHANNEL_ID }}
         run: |
           grep -E "できませんでした|失敗|足りません|見つかりません|止まりました" "$RUNNER_TEMP/publish.log" 2>/dev/null | tail -5 > "$RUNNER_TEMP/detail.txt" || true
-          node app/tools/publish/send-alert.js --title "LINE WORKS への送迎表の送信" --url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --detail-file "$RUNNER_TEMP/detail.txt"
+          node app/tools/publish/send-alert.js --kind publish --title "LINE WORKS への送迎表の送信" --url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --detail-file "$RUNNER_TEMP/detail.txt"
