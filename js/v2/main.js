@@ -231,13 +231,22 @@ async function save() {
 
 /* ---------- 時刻は、1つの選択らんで5分きざみに選ぶ ----------
    iPad や Android の時刻らん（input type=time）は、step を付けても1分きざみのくるくるになる。
-   そこで 7:00〜18:55 を5分ごとにならべた選択らんにする（押すと、くるくる1本で選べる）。
-   前に入っていた時刻が5分きざみでなければ、その時刻も選べるように足す（消さない） */
+   そこで5分ごとにならべた選択らんにする（押すと、くるくる1本で選べる）。
+   ならべる幅は、迎え 7:00〜9:30・送り 15:30〜17:30（2026-11-27 田中さんの決定）。
+   前に入っていた時刻が幅の外や5分きざみでなければ、その時刻も選べるように足す（消さない） */
 const pad2 = n => String(n).padStart(2, '0');
-const TIME_CHOICES = Array.from({ length: 12 * 12 }, (_, i) => `${pad2(7 + Math.floor(i / 12))}:${pad2((i % 12) * 5)}`);
-function timePickerHtml(time) {
+const TIME_RANGE = { out: ['07:00', '09:30'], ret: ['15:30', '17:30'] };
+const minutesOf = hhmm => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+function timeChoices(leg) {
+  const [from, to] = (TIME_RANGE[leg] || TIME_RANGE.out).map(minutesOf);
+  const out = [];
+  for (let m = from; m <= to; m += 5) out.push(`${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`);
+  return out;
+}
+function timePickerHtml(time, leg) {
   const t = M.normTime(time) || '';
-  const list = t && !TIME_CHOICES.includes(t) ? [...TIME_CHOICES, t].sort() : TIME_CHOICES;
+  const choices = timeChoices(leg);
+  const list = t && !choices.includes(t) ? [...choices, t].sort() : choices;
   const label = v => v.replace(/^0/, '');
   return `<select id="f-time" class="timepick" aria-label="時刻"><option value=""${t ? '' : ' selected'}>--:--</option>${list.map(v => `<option value="${v}"${v === t ? ' selected' : ''}>${label(v)}</option>`).join('')}</select>`;
 }
@@ -275,7 +284,7 @@ function riderSheet(pos, isNew) {
     <input type="text" id="f-place" value="${escapeHtml(row.place)}" autocomplete="off">
     <div class="quick">${places.map(p => `<button type="button" data-place="${escapeHtml(p)}">${escapeHtml(p)}</button>`).join('')}</div>
     <label>時刻</label>
-    ${timePickerHtml(row.time)}
+    ${timePickerHtml(row.time, pos.leg)}
     <div class="row">
       ${isNew ? '' : '<button class="btn2 danger" id="f-del" type="button">はずす</button>'}
       <div class="grow"></div>
