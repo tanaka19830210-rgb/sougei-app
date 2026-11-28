@@ -6,6 +6,13 @@
 
 --seats には、車ごとの最大の乗車人数を書きます。書かないと定員が入りません
 （取りこみ直すと、前に入れた定員は消えます）。
+--until を付けると、その日付より後の週（先の週の下書きシート）は入れません。
+
+表の形は事業所でちがいます（どれも読めます）：
+  ファニー … 日付は2行目、車の見出しは「≪ハイエース≫」
+  ひといき … 日付は3行目、車の見出しは「≪ハイエース≫」。同じ週のシートが2枚あることがある（中身の多いほうを使う）
+  ふぃっと … 日付は1行目、車の見出しはかこみ無しの「ハイエース」（--seats に書いた名前で見つける）。
+             見出しのすぐ下が迎えの運転手。「朝　残り」「帰り　残り」から下は車の表ではない
 
 出力フォルダ/data/<事業所>/weeks/<月曜の日付>.json ができます。
 本物のお名前が入るので、出力先は「非公開のデータ用リポジトリ」にしてください。
@@ -46,33 +53,51 @@ def split_label(s):
 
 
 def week_start_of(ws):
-    for c in DAY_COLS:
-        v = ws.cell(2, c).value
-        d = None
-        if isinstance(v, datetime.datetime):
-            d = v.date()
-        elif isinstance(v, (int, float)) and 30000 < v < 60000:
-            d = datetime.date(1899, 12, 30) + datetime.timedelta(days=int(v))
-        if d:
-            d = d - datetime.timedelta(days=DAY_COLS.index(c))
-            return d - datetime.timedelta(days=d.weekday())
+    """日付の行を見つけて、その週の月曜を返す。日付の行は事業所でちがう
+    （ファニー＝2行目、ひといき＝3行目、ふぃっと＝1行目）。"""
+    for r in (2, 3, 1):
+        for c in DAY_COLS:
+            v = ws.cell(r, c).value
+            d = None
+            if isinstance(v, datetime.datetime):
+                d = v.date()
+            elif isinstance(v, (int, float)) and 30000 < v < 60000:
+                d = datetime.date(1899, 12, 30) + datetime.timedelta(days=int(v))
+            if d:
+                d = d - datetime.timedelta(days=DAY_COLS.index(c))
+                return d - datetime.timedelta(days=d.weekday())
     return None
 
 
-def parse_sheet(ws):
+def is_end_mark(text):
+    """「連絡担当」「朝 残り」「帰り 残り」から下は車の表ではない"""
+    t = re.sub(r'\s+', '', text)
+    return t == '連絡担当' or t.endswith('残り')
+
+
+def parse_sheet(ws, van_names=()):
+    """van_names：「≪ ≫」でかこまれていなくても車の見出しとみなす名前（ふぃっとの表はかこみが無い）"""
     start = week_start_of(ws)
     if not start:
         return None
     vans, days = [], {str(d): {'notes': [], 'trips': {}} for d in range(1, 7)}
     van_id, last_row = None, {}
-    for r in range(4, ws.max_row + 1):
+    # 「≪車名≫」の見出しがある表（ファニー・ひといき）では、かこみの無い車の名前は見出しにしない
+    # （連絡らんの「ハイエース点検」などを車とまちがえないため）
+    if any(v and '≪' in str(v) for row in ws.iter_rows(min_col=2, max_col=13, values_only=True) for v in row):
+        van_names = ()
+    for r in range(2, ws.max_row + 1):
         head = None
         for c in (2, 6, 12, 13):
             v = ws.cell(r, c).value
             if v and '≪' in str(v):
                 head = norm(v).strip('≪≫ ')
+        b = norm(ws.cell(r, 2).value or '')
+        first = re.split(r'\s+', b)[0] if b else ''
+        if not head and b and (first in van_names or (van_names and van_id and is_end_mark(b))):
+            head = first if first in van_names else b   # 「ノア　運動会」のような書き足しは車の名前だけにする
         if head:
-            if head == '連絡担当':
+            if is_end_mark(head):
                 van_id = None
                 continue
             van_id = 'v%d' % (len(vans) + 1)
@@ -129,7 +154,8 @@ def main():
     ap.add_argument('out')
     ap.add_argument('--facility', default='funny')
     ap.add_argument('--last', type=int, default=12, help='新しいほうから何週ぶん取りこむか')
-    ap.add_argument('--seats', default='', help='車ごとの最大の乗車人数。例: "セレナ=7,ハイエース=9"（取りこみ直しても定員が消えないように）')
+    ap.add_argument('--seats', default='', help='車ごとの最大の乗車人数。例: "セレナ=7,ハイエース=9"（取りこみ直しても定員が消えないように）。ここに書いた名前は「≪ ≫」が無くても車の見出しとして読む')
+    ap.add_argument('--until', default='', help='この日付（YYYY-MM-DD）より後の週は取りこまない。先の週の下書きシートを入れないため')
     a = ap.parse_args()
     seats = {}
     for part in re.split(r'[,、，]+', a.seats):
@@ -140,18 +166,33 @@ def main():
             raise SystemExit('--seats の書きかたが読めません: %s（例: "セレナ=7,ハイエース=9"）' % part)
         seats[m.group(1)] = int(m.group(2))
     wb = openpyxl.load_workbook(a.xlsx, data_only=True)
-    weeks = {}
+    weeks, dup = {}, {}
     for ws in wb.worksheets:
         try:
-            w = parse_sheet(ws)
+            w = parse_sheet(ws, set(seats))
         except Exception as e:                      # 形のちがうシートは読みとばす
             print('読めないシート:', ws.title, e, file=sys.stderr)
             continue
         if w and w['vans']:
             riders = sum(len(t[l]['rows']) for d in w['days'].values() for t in d['trips'].values() for l in ('out', 'ret'))
             if riders:
-                weeks[w['weekStart']] = w             # 同じ週のシートが複数あれば、後ろ（新しいほう）を使う
+                k = w['weekStart']
+                w['_score'] = riders + sum(bool(t[l]['driver']) for d in w['days'].values() for t in d['trips'].values() for l in ('out', 'ret'))
+                if k in weeks:
+                    dup.setdefault(k, [weeks[k]['source']]).append(w['source'])
+                    if w['_score'] < weeks[k]['_score']:
+                        continue                      # 同じ週のシートが複数あれば、中身（利用者＋運転手）の多いほう。同じなら後ろのほう
+                weeks[k] = w
+    if a.until:
+        weeks = {k: w for k, w in weeks.items() if k <= a.until}
     keys = sorted(weeks)[-a.last:]
+    if not keys:
+        raise SystemExit('取りこめる週が見つかりませんでした（日付の行や「≪車名≫」の見出しが読めていません。ふぃっとのように見出しがかこまれていない表は --seats に車の名前を書いてください）')
+    for k in keys:
+        if k in dup:
+            print('注意：%s の週はシートが%d枚あります（%s）。中身の多い「%s」を使いました' % (k, len(dup[k]), '・'.join(dup[k]), weeks[k]['source']), file=sys.stderr)
+    for w in weeks.values():
+        w.pop('_score', None)
     folder = os.path.join(a.out, 'data', a.facility, 'weeks')
     os.makedirs(folder, exist_ok=True)
     no_seats = set()
