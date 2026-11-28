@@ -73,18 +73,25 @@ def read_memo(memo):
 # ------------------------------------------------------------
 def read_month(ws, year, month):
     """{日: [利用者…]} を返す"""
+    def day_of(v):
+        # 日の見出しは「1, 2, 3 …」の数字（ファニー・ふぃっと）か、日付そのもの（ひといき）
+        if isinstance(v, (datetime.datetime, datetime.date)):
+            return v.day if (v.year, v.month) == (year, month) else None
+        s = compact(v)
+        return int(s) if s.isdigit() and 1 <= int(s) <= 31 else None
+
     head = None
     for r in range(1, ws.max_row + 1):
         b = compact(ws.cell(r, 2).value)
-        if b in ('氏名',) and compact(ws.cell(r, 3).value) == '1':
+        if b in ('氏名',) and day_of(ws.cell(r, 3).value) == 1:
             head = r                                   # 利用者の表の見出し（職員の表にも「氏名」があれば、後ろのほうを使う）
     if not head:
         return {}
     cols = {}
     for c in range(3, ws.max_column + 1):
-        v = compact(ws.cell(head, c).value)
-        if v.isdigit() and 1 <= int(v) <= 31:
-            cols[int(v)] = c
+        d = day_of(ws.cell(head, c).value)
+        if d:
+            cols[d] = c
         elif cols:
             break
     days = {}

@@ -20,3 +20,6 @@ desktop.ini
 
 # GAS のつなぎ先（clasp が作る。スクリプトの番号は上げません）
 .clasp.json
+
+# Python の一時ファイル
+__pycache__/
