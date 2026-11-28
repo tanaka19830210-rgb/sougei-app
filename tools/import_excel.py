@@ -54,8 +54,8 @@ def split_label(s):
 
 def week_start_of(ws):
     """日付の行を見つけて、その週の月曜を返す。日付の行は事業所でちがう
-    （ファニー＝2行目、ひといき＝3行目、ふぃっと＝1行目）。"""
-    for r in (2, 3, 1):
+    （ファニー＝2行目、ひといき＝3行目、ふぃっと＝1行目、八幡が丘＝4行目）。"""
+    for r in (2, 3, 1, 4):
         for c in DAY_COLS:
             v = ws.cell(r, c).value
             d = None
@@ -73,6 +73,76 @@ def is_end_mark(text):
     """「連絡担当」「朝 残り」「帰り 残り」から下は車の表ではない"""
     t = re.sub(r'\s+', '', text)
     return t == '連絡担当' or t.endswith('残り')
+
+
+STAY_DAY_COLS = DAY_COLS + [14]           # ショートステイは月〜日
+STAY_SECTIONS = {'送り出し': 'out', '迎え': 'ret', '他事業所対応': None}
+
+
+def is_stay_sheet(ws):
+    """ショートステイ（八幡が丘）の形か：B列に「送り出し」の見出しがある"""
+    return any(norm(ws.cell(r, 2).value or '') == '送り出し' for r in range(1, min(ws.max_row, 40) + 1))
+
+
+def parse_stay_sheet(ws, van_name='送迎車'):
+    """
+    ショートステイ（八幡が丘）の送迎表。車の区切りは無く、1台として読む。
+      「送り出し」（午前の便＝out）→ 運転手の行 → 利用者（時刻つき）
+      「迎え」（午後の便＝ret）    → 同じ
+      「他事業所対応」             → 連絡らんへ
+    1つの便に運転手の行が2つあれば「A・B」とつなぐ。
+    """
+    start = week_start_of(ws)
+    if not start:
+        return None
+    van_id = 'v1'
+    days = {str(d): {'notes': [], 'trips': {van_id: {'out': {'driver': '', 'rows': []}, 'ret': {'driver': '', 'rows': []}}}} for d in range(1, 8)}
+    leg, in_notes, last_row = None, False, {}
+    for r in range(5, ws.max_row + 1):
+        b = re.sub(r'\s+', '', norm(ws.cell(r, 2).value or ''))
+        if b in STAY_SECTIONS and not to_hhmm(ws.cell(r, 3).value):
+            leg, in_notes, last_row = STAY_SECTIONS[b], STAY_SECTIONS[b] is None, {}
+            continue
+        if not leg and not in_notes:
+            continue
+        for di, c in enumerate(STAY_DAY_COLS):
+            v = ws.cell(r, c).value
+            if v is None or not norm(v):
+                continue
+            text = norm(v)
+            day = days[str(di + 1)]
+            if in_notes:
+                day['notes'].append(text)
+                continue
+            trip = day['trips'][van_id][leg]
+            hhmm = to_hhmm(ws.cell(r, c + 1).value)
+            if hhmm:
+                # 八幡が丘は「名字　行き先」（行き先は事業所名や「自宅」）
+                parts = re.split(r'\s+', text, maxsplit=1)
+                if len(parts) == 2 and '(' not in text and '（' not in text:
+                    name, place = re.sub(r'(様|さん)$', '', parts[0]), parts[1]
+                else:
+                    name, place = split_label(text)
+                row = {'name': name, 'place': '' if place == '自宅' else place, 'time': hhmm}
+                trip['rows'].append(row)
+                last_row[di] = row
+                continue
+            if text.startswith('(') and di in last_row and not last_row[di]['place']:
+                last_row[di]['place'] = text.strip('() ')
+                continue
+            if len(text) > 10 or any(w in text for w in NOTE_WORDS) or re.search(r'\s', text):
+                day['notes'].append(text)
+            elif not trip['driver']:
+                trip['driver'] = text
+            elif text not in trip['driver'].split('・'):
+                trip['driver'] += '・' + text
+    return {
+        'schemaVersion': 2,
+        'weekStart': start.isoformat(),
+        'vans': [{'id': van_id, 'name': van_name}],
+        'days': days,
+        'source': 'excel:' + ws.title.strip(),
+    }
 
 
 def parse_sheet(ws, van_names=()):
@@ -169,7 +239,10 @@ def main():
     weeks, dup = {}, {}
     for ws in wb.worksheets:
         try:
-            w = parse_sheet(ws, set(seats))
+            if is_stay_sheet(ws):
+                w = parse_stay_sheet(ws, next(iter(seats), '送迎車'))
+            else:
+                w = parse_sheet(ws, set(seats))
         except Exception as e:                      # 形のちがうシートは読みとばす
             print('読めないシート:', ws.title, e, file=sys.stderr)
             continue

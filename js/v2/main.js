@@ -14,6 +14,9 @@ import { createStore } from '../store/index.js';
 import { callGate } from '../store/gateStore.js';
 import { createRepository } from '../store/repository.js';
 import { currentWeekKey, shiftWeekKey, weekLongLabel, weekShortLabel } from '../core/dates.js';
+
+/* 週の最後の曜日（生活介護は土＝6、ショートステイは日＝7） */
+const lastDay = () => Math.max(...M.DAY_NUMBERS);
 import { escapeHtml } from '../core/html.js';
 import * as M from './model.js';
 import { buildDraft } from './draft.js';
@@ -28,8 +31,8 @@ const rulesPath = fid => `data/${fid}/rules.json`;
 const attendancePath = (fid, key) => `data/${fid}/attendance/${key}.json`;
 const HISTORY_WEEKS = 8;
 /* 日曜にひらいたときは、翌日からの週を「今週」とする（currentWeekKey の決まり） */
-const thisWeek = () => currentWeekKey();
-const nextWeek = () => shiftWeekKey(currentWeekKey(), 1);
+const thisWeek = () => currentWeekKey(new Date(), !M.DAY_NUMBERS.includes(7));
+const nextWeek = () => shiftWeekKey(thisWeek(), 1);
 
 const app = {
   config: null, store: null, facilities: [], facility: null,
@@ -82,11 +85,11 @@ function draw() {
   const showing = app.preview ? app.preview.week : app.week;
   const warnings = [...M.checkWeek(showing, app.roster), ...checkAttendance(showing, app.attendance)];
   app.board.render({ week: showing, warnings, changes: app.preview ? app.preview.changes : [], locked: !!app.preview, roster: app.roster });
-  $('weeklabel').textContent = weekShortLabel(app.weekKey);
+  $('weeklabel').textContent = weekShortLabel(app.weekKey, lastDay());
   /* 作るのは今週と来週だけ。どちらを開いているかを、ボタンの色で示す */
   $('prev').classList.toggle('solid', app.weekKey === thisWeek());
   $('next').classList.toggle('solid', app.weekKey === nextWeek());
-  $('printhead').textContent = `${app.facility.printTitle || app.facility.name}　${weekLongLabel(app.weekKey)}`;
+  $('printhead').textContent = `${app.facility.printTitle || app.facility.name}　${weekLongLabel(app.weekKey, lastDay())}`;
   $('undo').disabled = !app.undo.length || !!app.preview;
   $('save').classList.toggle('dirty', app.dirty);
   /* 保存するものが無いときは、「保存する」のまま灰色にして押せなくする */
@@ -161,7 +164,7 @@ function fitToAttendance() {
 function draftStrip(summary, fitted) {
   if (!summary.copiedFrom) return strip('これまでの表がまだ無いので、空の表です。「⋯」から車を足して、人を入れてください。', 'warn');
   const names = list => [...new Set(list.map(x => x.name))].slice(0, 8).map(n => escapeHtml(n) + '様').join('・') + (new Set(list.map(x => x.name)).size > 8 ? ' ほか' : '');
-  const lines = [`<b>${weekLongLabel(summary.copiedFrom)}</b> の表をもとに下書きを作りました。`];
+  const lines = [`<b>${weekLongLabel(summary.copiedFrom, lastDay())}</b> の表をもとに下書きを作りました。`];
   if (summary.restored.length) lines.push(`<i class="restored">青わく</i>＝先週お休みだったので戻した人（${names(summary.restored)}）`);
   if (summary.onlyLast.length) lines.push(`<i class="onlyLast">点線わく</i>＝先週だけ乗っていた人（${names(summary.onlyLast)}）`);
   const words = attendanceWords(fitted);
@@ -233,12 +236,18 @@ async function save() {
    iPad や Android の時刻らん（input type=time）は、step を付けても1分きざみのくるくるになる。
    そこで5分ごとにならべた選択らんにする（押すと、くるくる1本で選べる）。
    ならべる幅は、迎え 7:00〜9:30・送り 15:30〜17:30（2026-11-27 田中さんの決定）。
+   事業所の設定（facilities.json の timeRange）があれば、そちらを使う（八幡が丘は送り出し 8:00〜11:30・迎え 14:30〜17:30）。
    前に入っていた時刻が幅の外や5分きざみでなければ、その時刻も選べるように足す（消さない） */
 const pad2 = n => String(n).padStart(2, '0');
 const TIME_RANGE = { out: ['07:00', '09:30'], ret: ['15:30', '17:30'] };
 const minutesOf = hhmm => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+function timeRangeOf(leg) {
+  const r = app.facility && app.facility.timeRange && app.facility.timeRange[leg];
+  const ok = Array.isArray(r) && r.length === 2 && r.every(t => /^\d{1,2}:\d{2}$/.test(String(t)));
+  return ok ? r.map(String) : (TIME_RANGE[leg] || TIME_RANGE.out);
+}
 function timeChoices(leg) {
-  const [from, to] = (TIME_RANGE[leg] || TIME_RANGE.out).map(minutesOf);
+  const [from, to] = timeRangeOf(leg).map(minutesOf);
   const out = [];
   for (let m = from; m <= to; m += 5) out.push(`${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`);
   return out;
@@ -430,7 +439,7 @@ function aiSheet(prefill = '') {
     try {
       const answer = await askAi({
         apiKey: app.config.aiKey, gate: app.gate && !app.config.aiKey ? askGateAi : null, week: app.week, roster: app.roster, rules: app.rules, instruction: text,
-        weekLabel: weekLongLabel(app.weekKey), pastInstructions: (app.week.log || []).map(l => l.text), warnings: app.warnings, attendance: attendanceToText(app.attendance)
+        weekLabel: weekLongLabel(app.weekKey, lastDay()), pastInstructions: (app.week.log || []).map(l => l.text), warnings: app.warnings, attendance: attendanceToText(app.attendance)
       });
       closeSheet();
       showAnswer(text, answer);
@@ -586,7 +595,7 @@ async function sendToLineWorks() {
   }
   if (!app.exists) { toast('この週は、まだ保存されていません。保存してから送ってください', 'warn'); return; }
   const name = app.facility.shortName || app.facility.name;
-  if (!window.confirm(`${name}の ${weekLongLabel(app.weekKey)} の送迎表を、画像にして LINE WORKS へ送ります。よろしいですか？`)) return;
+  if (!window.confirm(`${name}の ${weekLongLabel(app.weekKey, lastDay())} の送迎表を、画像にして LINE WORKS へ送ります。よろしいですか？`)) return;
   const request = createPublishRequest({ facility: app.facility, weekStart: app.weekKey, requestedBy: app.config.editorName || '' });
   const stamp = request.requestedAt.replace(/[-:]/g, '').replace(/\..+$/, '');
   const path = `publish-requests/${app.facility.id}-${app.weekKey}-${stamp}.json`;
@@ -700,6 +709,7 @@ export async function start() {
   if (!app.facilities.length) { strip('事業所の一覧（data/facilities.json）が読めませんでした。設定を確かめてください。', 'error'); return; }
   app.facility = app.facilities.find(f => f.id === (render ? params.get('f') : app.config.facilityId)) || (render ? null : app.facilities[0]);
   if (!app.facility) { document.body.dataset.render = 'error:事業所が見つかりません'; return; }
+  M.useFacility(app.facility);
   $('facility').innerHTML = app.facilities.map(f => `<option value="${escapeHtml(f.id)}">${escapeHtml(f.shortName || f.name)}</option>`).join('');
   $('facility').value = app.facility.id;
   /* 見られる事業所が1つだけなら、切りかえを出さずに名前だけにする */
@@ -709,6 +719,7 @@ export async function start() {
   $('facility').onchange = async () => {
     if (!(await leaveOk())) { $('facility').value = app.facility.id; return; }
     app.facility = app.facilities.find(f => f.id === $('facility').value);
+    M.useFacility(app.facility);
     try { app.config = saveConfig({ ...app.config, facilityId: app.facility.id }); } catch (e) { /* 覚えられなくても動く */ }
     openWeek(app.weekKey);
   };

@@ -41,7 +41,7 @@ function num(v, fallback = 0) {
 }
 function dayList(v, fallback = DEFAULT_DAYS) {
   if (!Array.isArray(v)) return fallback.slice();
-  const out = v.map(Number).filter(n => n >= 1 && n <= 6);
+  const out = v.map(Number).filter(n => n >= 1 && n <= 7);   // 7＝日曜（ショートステイは日曜も送迎がある）
   return out.length ? [...new Set(out)].sort((a, b) => a - b) : [];
 }
 

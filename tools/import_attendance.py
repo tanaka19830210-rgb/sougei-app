@@ -132,21 +132,101 @@ def read_month(ws, year, month):
     return days
 
 
-def read_weeks(xlsx, week_starts):
+# ------------------------------------------------------------
+# ショートステイ（八幡が丘）の月のシートを読む
+# ------------------------------------------------------------
+def is_stay_month(ws):
+    """部屋ごとの「氏名」「短期入所サービス」「送迎」「食事」の4行がならぶ形か"""
+    return any(compact(ws.cell(r, 2).value) == '短期入所サービス' for r in range(1, min(ws.max_row, 120) + 1))
+
+
+def family_of(full, known):
+    """フルネーム（「名字名前」で間があかない）から名字を決める。
+    これまでの送迎表に出てくる名字（known）のうち、頭が合ういちばん長いもの。無ければそのまま"""
+    hits = [k for k in known if k and full.startswith(k)]
+    return max(hits, key=len) if hits else full
+
+
+def read_stay_month(ws, year, month, known=()):
+    """
+    {日: [利用者…]} を返す。
+      部屋ごとに4行：氏名（その日に泊まる人）／短期入所サービス／送迎（迎・送・なし）／食事
+      「送」＝その日の午前に送り出す（out）、「迎」＝その日の午後に迎えに行く（ret）、「なし」＝送迎しない
+    日の列は、1, 2, 3 … の数字がならぶ行で決める。
+    """
+    cols = {}
+    for r in range(1, min(ws.max_row, 10) + 1):
+        found = {}
+        for c in range(2, ws.max_column + 1):
+            v = ws.cell(r, c).value
+            if isinstance(v, (int, float)) and float(v).is_integer() and 1 <= int(v) <= 31 and int(v) not in found:
+                found[int(v)] = c
+        if 1 in found and 2 in found and found[2] == found[1] + 1:
+            cols = found
+            break
+    days = {}
+    for r in range(2, ws.max_row + 1):
+        if compact(ws.cell(r, 2).value) != '短期入所サービス':
+            continue
+        name_row, move_row = r - 1, r + 1
+        for d, c in cols.items():
+            try:
+                date = datetime.date(year, month, d)
+            except ValueError:
+                continue
+            full = compact(ws.cell(name_row, c).value)
+            if not full or full == '氏名':
+                continue
+            move = compact(ws.cell(move_row, c).value)
+            days.setdefault(date, []).append({
+                'name': full, 'family': family_of(full, known), 'memo': move,
+                'out': '送' in move, 'ret': '迎' in move,
+            })
+    return days
+
+
+def known_families(out_dir, facility):
+    """これまでの送迎表（data/<事業所>/weeks/）に出てくる利用者の名字"""
+    folder = os.path.join(out_dir, 'data', facility, 'weeks')
+    names = set()
+    if not os.path.isdir(folder):
+        return names
+    for fn in os.listdir(folder):
+        try:
+            with open(os.path.join(folder, fn), encoding='utf-8') as f:
+                w = json.load(f)
+        except Exception:
+            continue
+        for d in (w.get('days') or {}).values():
+            for t in (d.get('trips') or {}).values():
+                for leg in ('out', 'ret'):
+                    for row in ((t.get(leg) or {}).get('rows') or []):
+                        if row.get('name'):
+                            names.add(compact(row['name']))
+    return names
+
+
+def read_weeks(xlsx, week_starts, known=()):
     import openpyxl
     import warnings
     warnings.simplefilter('ignore')
     wb = openpyxl.load_workbook(xlsx, data_only=True)
     months = {}
     out = []
+    stay = any(is_stay_month(wb[n]) for n in wb.sheetnames if re.fullmatch(r'\d{6}', n))
     for start in week_starts:
         week = {'weekStart': start.isoformat(), 'days': {}}
-        for i in range(6):
+        for i in range(7 if stay else 6):            # ショートステイは日曜も送迎がある
             date = start + datetime.timedelta(days=i)
             ym = (date.year, date.month)
             if ym not in months:
                 title = '%04d%02d' % ym
-                months[ym] = read_month(wb[title], *ym) if title in wb.sheetnames else None
+                if title not in wb.sheetnames:
+                    months[ym] = None
+                elif stay:
+                    months[ym] = read_stay_month(wb[title], *ym, known=known)
+                else:
+                    months[ym] = read_month(wb[title], *ym)
             if months[ym] is None:
                 week.setdefault('missing', []).append(date.isoformat())
             week['days'][str(i + 1)] = (months[ym] or {}).get(date, [])
@@ -203,7 +283,7 @@ def main():
     monday = today - datetime.timedelta(days=today.weekday())
     source = a.xlsx if a.xlsx else dropbox_download(a.dropbox)
     starts = [monday + datetime.timedelta(days=7)] if a.only_next else [monday, monday + datetime.timedelta(days=7)]
-    weeks = read_weeks(source, starts)
+    weeks = read_weeks(source, starts, known_families(a.out, a.facility))
 
     folder = os.path.join(a.out, 'data', a.facility, 'attendance')
     os.makedirs(folder, exist_ok=True)
