@@ -250,7 +250,11 @@ function timeChoices(leg) {
   const [from, to] = timeRangeOf(leg).map(minutesOf);
   const out = [];
   for (let m = from; m <= to; m += 5) out.push(`${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`);
-  return out;
+  /* 幅の外でも、いつも使う時刻は facilities.json の extraTimes で足せる
+     （ふぃっとの送り 13:30・14:20・14:30・14:45、2026-11-28 田中さんの依頼） */
+  const extra = app.facility && app.facility.extraTimes && app.facility.extraTimes[leg];
+  if (Array.isArray(extra)) extra.map(t => M.normTime(String(t))).filter(t => t && !out.includes(t)).forEach(t => out.push(t));
+  return out.sort();
 }
 function timePickerHtml(time, leg) {
   const t = M.normTime(time) || '';
@@ -366,15 +370,36 @@ function driverSheet(pos) {
   $('f-week').onclick = () => done(M.DAY_NUMBERS);
 }
 
+/* 連絡らん。1行＝1つの連絡。下に行ごとの「文字の色」ボタンを出す（黒・赤・青・緑） */
 function notesSheet(day) {
+  const colors = { ...(app.week.days[day].noteColors || {}) };
+  const lines = () => $('f-notes').value.split('\n').map(s => s.trim()).filter(Boolean);
   openSheet(`
     <h3>${M.DAY_NAMES[day]}曜の連絡</h3>
     <textarea id="f-notes">${escapeHtml(app.week.days[day].notes.join('\n'))}</textarea>
+    <div class="notecolors" id="f-colors"></div>
     <div class="row"><div class="grow"></div><button class="btn2" id="f-cancel" type="button">やめる</button><button class="btn2 go" id="f-ok" type="button">決定</button></div>`, { middle: true });
+  const drawColors = () => {
+    const ls = lines();
+    $('f-colors').innerHTML = ls.length ? '<label>文字の色</label>' + ls.map((n, i) => {
+      const cur = M.NOTE_COLORS[colors[n]] ? colors[n] : '';
+      return `<div class="nline"><span class="tx${cur ? ' nc-' + cur : ''}">${escapeHtml(n)}</span>${Object.keys(M.NOTE_COLOR_NAMES).map(c =>
+        `<button type="button" data-line="${i}" data-c="${c}" class="${c ? 'nc-' + c : ''}${c === cur ? ' on' : ''}">${M.NOTE_COLOR_NAMES[c]}</button>`).join('')}</div>`;
+    }).join('') : '';
+    $('f-colors').querySelectorAll('button').forEach(b => {
+      b.onclick = () => { const n = lines()[Number(b.dataset.line)]; if (b.dataset.c) colors[n] = b.dataset.c; else delete colors[n]; drawColors(); };
+    });
+  };
+  $('f-notes').addEventListener('input', drawColors);
+  drawColors();
   $('f-cancel').onclick = closeSheet;
   $('f-ok').onclick = () => {
     const next = M.clone(app.week);
-    next.days[day].notes = $('f-notes').value.split('\n').map(s => s.trim()).filter(Boolean);
+    const notes = lines();
+    next.days[day].notes = notes;
+    const kept = {};
+    notes.forEach(n => { if (M.NOTE_COLORS[colors[n]]) kept[n] = colors[n]; });
+    if (Object.keys(kept).length) next.days[day].noteColors = kept; else delete next.days[day].noteColors;
     closeSheet();
     commit(next);
   };

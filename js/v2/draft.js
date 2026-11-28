@@ -92,7 +92,12 @@ export function buildDraft({ facilityId, weekStart, history }) {
     past.slice(0, 4).forEach(w => new Set(w.days[day].notes.map(normText)).forEach(n => counts.set(n, (counts.get(n) || 0) + 1)));
     const need = Math.min(3, past.slice(0, 4).length);
     src.days[day].notes.forEach(n => {
-      if (need >= 2 && counts.get(normText(n)) >= need && !week.days[day].notes.includes(n)) week.days[day].notes.push(n);
+      if (need >= 2 && counts.get(normText(n)) >= need && !week.days[day].notes.includes(n)) {
+        week.days[day].notes.push(n);
+        /* 文字の色も引きつぐ */
+        const c = src.days[day].noteColors && src.days[day].noteColors[n];
+        if (c) week.days[day].noteColors = { ...(week.days[day].noteColors || {}), [n]: c };
+      }
     });
   });
 

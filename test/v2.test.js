@@ -272,3 +272,19 @@ test('事業所ごとの曜日と便の呼び名（ショートステイは月�
   assert.equal(M.LEG_NAMES.out, '迎え');
   assert.equal(M.createEmptyWeek({ facilityId: 'funny', weekStart: '2026-11-23' }).days[7], undefined);
 });
+
+test('連絡の文字の色：読みこみで残り、無い文の色は捨て、下書きにも引きつぐ', () => {
+  const w = M.normalizeWeek({ vans: VANS, days: { 1: { notes: ['藤本様送迎なし', '中村様休み'], noteColors: { '藤本様送迎なし': 'red', '消えた連絡': 'blue', '中村様休み': 'purple' }, trips: {} } } }, { facilityId: 'funny', weekStart: '2026-11-16' });
+  assert.deepEqual(w.days[1].noteColors, { '藤本様送迎なし': 'red' });
+  assert.equal(M.noteColorOf(w.days[1], '藤本様送迎なし'), 'red');
+  assert.equal(M.noteColorOf(w.days[1], '中村様休み'), '');
+  assert.equal(w.days[2].noteColors, undefined, '色が無い日は何も足さない');
+  const hist = ['2026-11-09', '2026-11-02', '2026-10-26'].map(k => week(k, x => {
+    usual(x);
+    x.days[1].notes.push('藤本様送迎なし');
+    x.days[1].noteColors = { '藤本様送迎なし': 'red' };
+  }));
+  const d = buildDraft({ facilityId: 'funny', weekStart: '2026-11-16', history: hist }).week;
+  assert.ok(d.days[1].notes.includes('藤本様送迎なし'));
+  assert.equal(d.days[1].noteColors['藤本様送迎なし'], 'red');
+});
