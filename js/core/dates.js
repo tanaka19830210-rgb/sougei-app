@@ -59,8 +59,10 @@ export function weekKeyOf(date) {
   日曜日は mondayOf だと「もう終わった先週」になり、週ラベルしか出ないので
   気づかずに先週の表を配信してしまう。日曜にひらくのは翌週の準備なので、次の週を出す。
 */
-export function currentWeekKey(now = new Date()) {
-  return weekKeyOf(now.getDay() === 0 ? addDays(now, 1) : now);
+/* sundayIsNext：日曜は「次の週」として扱う（生活介護は日曜に送迎が無いので、日曜に開いたら来週を見せる）。
+   日曜も送迎があるショートステイでは false にして、日曜は今週のうちにする */
+export function currentWeekKey(now = new Date(), sundayIsNext = true) {
+  return weekKeyOf(now.getDay() === 0 && sundayIsNext ? addDays(now, 1) : now);
 }
 
 /* 週キーから曜日番号の日付を出す */
@@ -81,22 +83,23 @@ export function mdLabel(date) {
   return (date.getMonth() + 1) + '/' + date.getDate();
 }
 
-/* 画面の週ラベル用：8/3 〜 8/8 */
-export function weekShortLabel(weekStartKey) {
+/* 画面の週ラベル用：8/3 〜 8/8（lastDay＝週の最後の曜日。6＝土、7＝日） */
+export function weekShortLabel(weekStartKey, lastDay = 6) {
   const start = parseDateKey(weekStartKey);
   if (!start) return '';
-  return mdLabel(start) + ' 〜 ' + mdLabel(addDays(start, 5));
+  return mdLabel(start) + ' 〜 ' + mdLabel(addDays(start, lastDay - 1));
 }
 
 /* 紙面の週ラベル用：2026年8月3日（月）〜 8日（土） */
-export function weekLongLabel(weekStartKey) {
+export function weekLongLabel(weekStartKey, lastDay = 6) {
   const start = parseDateKey(weekStartKey);
   if (!start) return '';
-  const end = addDays(start, 5);
+  const end = addDays(start, lastDay - 1);
+  const endName = '月火水木金土日'[lastDay - 1] || '土';
   const head = `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日（月）`;
   const tail = start.getMonth() === end.getMonth()
-    ? `${end.getDate()}日（土）`
-    : `${end.getMonth() + 1}月${end.getDate()}日（土）`;
+    ? `${end.getDate()}日（${endName}）`
+    : `${end.getMonth() + 1}月${end.getDate()}日（${endName}）`;
   return `${head}〜 ${tail}`;
 }
 

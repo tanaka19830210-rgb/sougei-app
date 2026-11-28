@@ -10,10 +10,26 @@
    ============================================================ */
 
 export const SCHEMA_VERSION = 2;
-export const DAY_NUMBERS = [1, 2, 3, 4, 5, 6];
-export const DAY_NAMES = { 1: '月', 2: '火', 3: '水', 4: '木', 5: '金', 6: '土' };
+/* 曜日と便の呼び名は事業所で変わる（useFacility で切りかえる）。
+   生活介護＝月〜土、午前（out）＝迎え・午後（ret）＝送り。
+   ショートステイ（八幡が丘）＝月〜日、午前（out）＝送り出し・午後（ret）＝迎え。
+   out＝午前の便・ret＝午後の便、という中身の約束はどの事業所でも同じ。 */
+const DEFAULT_DAYS = [1, 2, 3, 4, 5, 6];
+const DEFAULT_LEG_NAMES = { out: '迎え', ret: '送り' };
+export let DAY_NUMBERS = DEFAULT_DAYS.slice();
+export const DAY_NAMES = { 1: '月', 2: '火', 3: '水', 4: '木', 5: '金', 6: '土', 7: '日' };
 export const LEGS = ['out', 'ret'];
-export const LEG_NAMES = { out: '迎え', ret: '送り' };
+export let LEG_NAMES = { ...DEFAULT_LEG_NAMES };
+
+/* 事業所の設定（facilities.json の days・legNames）に合わせる。設定が無ければ生活介護の形 */
+export function useFacility(facility) {
+  const days = facility && Array.isArray(facility.days)
+    ? [...new Set(facility.days.map(Number).filter(d => d >= 1 && d <= 7))].sort((a, b) => a - b)
+    : [];
+  DAY_NUMBERS = days.length ? days : DEFAULT_DAYS.slice();
+  const names = (facility && facility.legNames) || {};
+  LEG_NAMES = { out: String(names.out || DEFAULT_LEG_NAMES.out), ret: String(names.ret || DEFAULT_LEG_NAMES.ret) };
+}
 
 export function emptyTrip() {
   return { out: { driver: '', rows: [] }, ret: { driver: '', rows: [] } };
@@ -342,7 +358,7 @@ export function weekToText(week) {
   const lines = [];
   DAY_NUMBERS.forEach(day => {
     const c = dayCounts(week, day);
-    lines.push(`■${DAY_NAMES[day]}曜（利用${c.all}人・迎え${c.out}・送り${c.ret}）`);
+    lines.push(`■${DAY_NAMES[day]}曜（利用${c.all}人・${LEG_NAMES.out}${c.out}・${LEG_NAMES.ret}${c.ret}）`);
     week.vans.forEach(v => LEGS.forEach(leg => {
       const t = week.days[day].trips[v.id][leg];
       if (!t.rows.length && !t.driver) return;

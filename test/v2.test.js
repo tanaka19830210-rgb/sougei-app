@@ -252,3 +252,23 @@ test('乗る場所の初期値：その便でいちばん多い場所。家（�
   assert.equal(M.usualPlace(roster, '川口', 'ret'), '自宅', '送りに乗ったことが無ければ、ほかの便の場所（家）');
   assert.equal(M.usualPlace(roster, 'はじめて', 'out'), '自宅');
 });
+
+test('事業所ごとの曜日と便の呼び名（ショートステイは月〜日・送り出し／迎え）', () => {
+  try {
+    M.useFacility({ id: 'yahatagaoka', days: [1, 2, 3, 4, 5, 6, 7], legNames: { out: '送り出し', ret: '迎え' } });
+    assert.deepEqual(M.DAY_NUMBERS, [1, 2, 3, 4, 5, 6, 7]);
+    assert.equal(M.LEG_NAMES.out, '送り出し');
+    /* 6日ぶんしか無いファイルを読んでも、日曜の欄ができる */
+    const w = M.normalizeWeek({ weekStart: '2026-11-23', vans: [{ id: 'v1', name: '送迎車', seats: 4 }], days: { 7: { notes: [], trips: { v1: { out: { driver: '森本', rows: [{ name: '井上', time: '09:00' }] } } } } } });
+    assert.equal(w.days[7].trips.v1.out.rows[0].name, '井上');
+    assert.ok(M.weekToText(w).includes('■日曜'));
+    assert.ok(M.weekToText(w).includes('送り出し'));
+    const r = M.applyOps(w, [{ type: 'remove', name: '井上', days: [7] }]);
+    assert.equal(r.week.days[7].trips.v1.out.rows.length, 0);
+  } finally {
+    M.useFacility(null);
+  }
+  assert.deepEqual(M.DAY_NUMBERS, [1, 2, 3, 4, 5, 6], 'もどすと生活介護の形');
+  assert.equal(M.LEG_NAMES.out, '迎え');
+  assert.equal(M.createEmptyWeek({ facilityId: 'funny', weekStart: '2026-11-23' }).days[7], undefined);
+});

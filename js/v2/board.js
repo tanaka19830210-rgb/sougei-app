@@ -42,9 +42,12 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
     const changedNote = new Set(changes.filter(c => c.note).map(c => c.day));
 
     const html = ['<div class="corner"></div>'];
+    /* 曜日の数は事業所で変わる（生活介護は6日、ショートステイは7日） */
+    board.style.setProperty('--days', DAY_NUMBERS.length);
+    board.style.setProperty('--cols', DAY_NUMBERS.length * 2);
     DAY_NUMBERS.forEach(day => {
       const c = dayCounts(week, day);
-      html.push(`<div class="dayhead" style="${wide ? 'grid-column:span 2' : ''}"><b>${DAY_NAMES[day]}</b><span>${mdLabel(dateOfDay(week.weekStart, day))}</span><em title="利用人数（迎え・送り）">${c.all}<small>（${c.out}・${c.ret}）</small></em></div>`);
+      html.push(`<div class="dayhead" style="${wide ? 'grid-column:span 2' : ''}"><b>${DAY_NAMES[day]}</b><span>${mdLabel(dateOfDay(week.weekStart, day))}</span><em title="利用人数（${LEG_NAMES.out}・${LEG_NAMES.ret}）">${c.all}<small>（${c.out}・${c.ret}）</small></em></div>`);
     });
 
     week.vans.forEach((van, vi) => {

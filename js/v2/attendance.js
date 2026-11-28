@@ -42,7 +42,7 @@ export function unknownDays(attendance) {
   const start = dayNumber(attendance && attendance.weekStart);
   ((attendance && attendance.missing) || []).forEach(iso => {
     const diff = dayNumber(iso) - start;
-    if (diff >= 0 && diff < 6) out.add(diff + 1);
+    if (diff >= 0 && diff < 7) out.add(diff + 1);   // 7＝日曜（日曜も送迎がある事業所だけ使う）
   });
   return out;
 }
@@ -58,7 +58,9 @@ function ridersOn(week, day, leg) {
   （利用はするが送迎はしない方がいる。毎週書いてある連絡は下書きに引きつがれる）
 */
 export function excusedByNote(notes, name, leg) {
-  const word = leg === 'out' ? '迎え?' : '送り?';
+  /* 便の呼び名は事業所で変わる（八幡が丘は午前＝送り出し・午後＝迎え） */
+  const label = LEG_NAMES[leg];
+  const word = label === '迎え' ? '迎え?' : label === '送り' ? '送り?' : label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const re = new RegExp(`${name}(様|さん)?(は)?(送迎|${word})(なし|無し?)`);
   return (notes || []).some(n => re.test(normText(n)));
 }
@@ -185,7 +187,7 @@ export function attendanceToText(attendance) {
   return DAY_NUMBERS.map(day => {
     if (unknown.has(day)) return `${DAY_NAMES[day]}曜 利用予定はまだ分かりません（来月のシートが未作成）`;
     const people = [...expectedOn(attendance, day).entries()].map(([name, e]) => {
-      const tags = [e.out === false ? '迎えなし' : '', e.ret === false ? '送りなし' : '', e.outPlace ? e.outPlace + '迎え' : '', e.retPlace ? e.retPlace + '送り' : ''].filter(Boolean);
+      const tags = [e.out === false ? LEG_NAMES.out + 'なし' : '', e.ret === false ? LEG_NAMES.ret + 'なし' : '', e.outPlace ? e.outPlace + LEG_NAMES.out : '', e.retPlace ? e.retPlace + LEG_NAMES.ret : ''].filter(Boolean);
       return name + (tags.length ? `(${tags.join('・')})` : '');
     });
     return `${DAY_NAMES[day]}曜 ${people.length}人: ${people.join('、')}`;

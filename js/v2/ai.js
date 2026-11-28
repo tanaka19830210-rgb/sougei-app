@@ -10,13 +10,13 @@
      npm の部品を使わないアプリなので、SDK ではなく fetch で呼んでいる。
    ============================================================ */
 
-import { weekToText, DAY_NAMES, seatsOf } from './model.js';
+import { weekToText, DAY_NAMES, DAY_NUMBERS, LEG_NAMES, seatsOf } from './model.js';
 
 export const AI_MODEL = 'claude-opus-5-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
-const DAYS_SCHEMA = { type: 'array', items: { type: 'integer', enum: [1, 2, 3, 4, 5, 6] }, description: '曜日。1=月 2=火 3=水 4=木 5=金 6=土。週ぜんぶなら省く' };
-const LEG_SCHEMA = { type: 'string', enum: ['out', 'ret', 'both'], description: 'out=迎え ret=送り both=両方' };
+const DAYS_SCHEMA = { type: 'array', items: { type: 'integer', enum: [1, 2, 3, 4, 5, 6, 7] }, description: '曜日。1=月 2=火 3=水 4=木 5=金 6=土 7=日（日は送迎がある事業所だけ）。週ぜんぶなら省く' };
+const LEG_SCHEMA = { type: 'string', enum: ['out', 'ret', 'both'], description: 'out=午前の便 ret=午後の便 both=両方（便の呼び名は「この事業所の曜日と便」を見る）' };
 
 export const TOOL = {
   name: 'change_schedule',
@@ -83,7 +83,8 @@ const GUIDE = `あなたは障害福祉の生活介護事業所で、週の送�
 export function buildRequest({ week, roster, rules, instruction, weekLabel, pastInstructions, warnings, attendance }) {
   const people = (roster.people || []).map(p => p.name + (p.places.filter(Boolean).length ? `（${p.places.filter(Boolean).slice(0, 4).join('・')}）` : '')).join('、');
   const context = [
-    `## 対象の週\n${weekLabel || week.weekStart}（曜日: ${Object.entries(DAY_NAMES).map(([n, d]) => `${n}=${d}`).join(' ')}）`,
+    `## 対象の週\n${weekLabel || week.weekStart}（曜日: ${DAY_NUMBERS.map(n => `${n}=${DAY_NAMES[n]}`).join(' ')}）`,
+    `## この事業所の便\nout＝午前の便「${LEG_NAMES.out}」、ret＝午後の便「${LEG_NAMES.ret}」。言葉の「${LEG_NAMES.out}」「${LEG_NAMES.ret}」はこの意味で読む`,
     `## 車（かっこ内は、利用者が乗れる最大人数）\n${week.vans.map(v => { const c = seatsOf(v, roster); return v.name + (c.seats ? `（${c.fixed ? '最大' : 'これまでの最大'}${c.seats}人）` : ''); }).join('、')}`,
     `## 利用者の名簿（かっこ内は、よく乗る場所）\n${people || '（まだ名簿がありません）'}`,
     `## 運転手\n${(roster.drivers || []).slice(0, 30).join('、') || '（不明）'}`,

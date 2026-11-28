@@ -90,5 +90,44 @@ for as_date in (False, True):
     check('利用予定（%s）：予定と送り場所' % label, len(d23) == 1 and d23[0].get('retPlace') == '西区')
     check('利用予定（%s）：欠席' % label, len(d24) == 1 and d24[0].get('absent'))
 
+# ショートステイ（八幡が丘）の送迎表：日付は4行目、月〜日、「送り出し」「迎え」「他事業所対応」
+wb = openpyxl.Workbook()
+ws = wb.active
+for i, c in enumerate(ie.STAY_DAY_COLS):
+    ws.cell(4, c, datetime.datetime.combine(MON + datetime.timedelta(days=i), T(0)))
+ws.cell(7, 2, '送り出し')
+ws.cell(8, 14, '森本')
+ws.cell(9, 14, '井上　ホームA'); ws.cell(9, 15, T(9, 30))
+ws.cell(10, 14, '岡田　自宅'); ws.cell(10, 15, T(10, 0))
+ws.cell(20, 2, '他事業所対応')
+ws.cell(21, 14, '小林様　ほかの事業所が送る')
+ws.cell(31, 2, '迎え')
+ws.cell(32, 8, '川口')
+ws.cell(33, 8, '山田　ホームB'); ws.cell(33, 9, T(15, 30))
+check('八幡が丘の形：見分けられる', ie.is_stay_sheet(ws) and not ie.is_stay_sheet(week_sheet(2, '≪ハイエース≫')[1]))
+w = ie.parse_stay_sheet(ws)
+sun, thu = w['days']['7']['trips']['v1'], w['days']['4']['trips']['v1']
+check('八幡が丘の形：週の月曜', w['weekStart'] == MON.isoformat())
+check('八幡が丘の形：日曜の送り出し（名字と行き先、自宅は空）', [(r['name'], r['place']) for r in sun['out']['rows']] == [('井上', 'ホームA'), ('岡田', '')] and sun['out']['driver'] == '森本')
+check('八幡が丘の形：木曜の迎え', [r['name'] for r in thu['ret']['rows']] == ['山田'] and thu['ret']['driver'] == '川口')
+check('八幡が丘の形：他事業所対応は連絡らんへ', w['days']['7']['notes'] == ['小林様 ほかの事業所が送る'])   # 全角のすき間は半角になる
+
+# ショートステイの泊まりの表：部屋ごとに 氏名／短期入所サービス／送迎／食事
+wb = openpyxl.Workbook()
+ws = wb.active
+for d in range(1, 31):
+    ws.cell(3, 2 + d, d)
+ws.cell(10, 1, '1号室')
+ws.cell(10, 2 + 26, '井上太郎'); ws.cell(10, 2 + 27, '井上太郎'); ws.cell(10, 2 + 28, '山田花子')
+ws.cell(11, 2, '短期入所サービス')
+ws.cell(12, 2, '送迎加算'); ws.cell(12, 2 + 26, '迎'); ws.cell(12, 2 + 27, '送'); ws.cell(12, 2 + 28, 'なし')
+ws.cell(13, 2, '食事')
+check('泊まりの表：見分けられる', ia.is_stay_month(ws))
+days = ia.read_stay_month(ws, 2026, 11, known={'井上'})
+d26, d27, d28 = (days.get(datetime.date(2026, 11, n), []) for n in (26, 27, 28))
+check('泊まりの表：「迎」は午後の便（ret）、名字は送迎表から', len(d26) == 1 and d26[0]['family'] == '井上' and d26[0]['ret'] and not d26[0]['out'])
+check('泊まりの表：「送」は午前の便（out）', len(d27) == 1 and d27[0]['out'] and not d27[0]['ret'])
+check('泊まりの表：「なし」は送迎しない・名字が分からなければフルネーム', len(d28) == 1 and not d28[0]['out'] and not d28[0]['ret'] and d28[0]['family'] == '山田花子')
+
 print('だめが %d 件' % fails if fails else 'すべて OK')
 sys.exit(1 if fails else 0)

@@ -42,9 +42,9 @@ input,textarea{-webkit-user-select:text;user-select:text;}
 
 /* ---------- 表 ---------- */
 #stage{flex:1;overflow:auto;touch-action:pan-x pan-y;-webkit-overflow-scrolling:touch;padding:3px;}
-#board{display:grid;grid-template-columns:2.1em repeat(6,15.2em);width:max-content;font-size:13px;line-height:1.5;
+#board{display:grid;grid-template-columns:2.1em repeat(var(--days,6),15.2em);width:max-content;font-size:13px;line-height:1.5;
   background:#fff;border:1px solid #b9c2b9;border-radius:.4em;overflow:hidden;margin:0 auto;}
-#board.wide{grid-template-columns:2.1em repeat(12,9.7em);}
+#board.wide{grid-template-columns:2.1em repeat(var(--cols,12),9.7em);}
 #board.wide .cell.out{border-right-style:dotted;}
 #board.wide .cell.ret{border-right-color:#9aa69a;border-bottom-color:#d5dbd5 !important;}
 #board.wide > .cell{border-bottom-color:#9aa69a !important;}
