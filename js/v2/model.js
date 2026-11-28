@@ -21,6 +21,21 @@ export const DAY_NAMES = { 1: '月', 2: '火', 3: '水', 4: '木', 5: '金', 6: 
 export const LEGS = ['out', 'ret'];
 export let LEG_NAMES = { ...DEFAULT_LEG_NAMES };
 
+/* 連絡らんの文字の色（2026-11-28 田中さんの依頼）。
+   day.noteColors に { 連絡の文: 色の名前 } で持つ（黒はふつうなので書かない）。
+   文で結びつけるので、AI が連絡を足したり消したりしても、ほかの行の色はずれない */
+export const NOTE_COLORS = { red: '#d0201a', blue: '#1d5fc4', green: '#1f8a3a' };
+export const NOTE_COLOR_NAMES = { '': '黒', red: '赤', blue: '青', green: '緑' };
+export function noteColorOf(day, text) {
+  const c = day && day.noteColors && day.noteColors[text];
+  return NOTE_COLORS[c] ? c : '';
+}
+function cleanNoteColors(colors, notes) {
+  const out = {};
+  if (colors && typeof colors === 'object') notes.forEach(n => { if (NOTE_COLORS[colors[n]]) out[n] = colors[n]; });
+  return out;
+}
+
 /* 事業所の設定（facilities.json の days・legNames）に合わせる。設定が無ければ生活介護の形 */
 export function useFacility(facility) {
   const days = facility && Array.isArray(facility.days)
@@ -54,6 +69,8 @@ export function normalizeWeek(raw, { facilityId, weekStart } = {}) {
   DAY_NUMBERS.forEach(d => {
     const day = (src.days && src.days[d]) || {};
     week.days[d].notes = (Array.isArray(day.notes) ? day.notes : []).map(String).filter(Boolean);
+    const colors = cleanNoteColors(day.noteColors, week.days[d].notes);
+    if (Object.keys(colors).length) week.days[d].noteColors = colors;
     vans.forEach(v => {
       const trip = (day.trips && day.trips[v.id]) || {};
       LEGS.forEach(leg => {

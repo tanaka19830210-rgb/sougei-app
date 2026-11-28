@@ -9,7 +9,7 @@
      指でずらせなくなるため）。マウスはすぐ持ち上がる。
    ============================================================ */
 
-import { DAY_NUMBERS, DAY_NAMES, LEGS, LEG_NAMES, dayCounts, shortTime, personKey, normText, seatsOf } from './model.js';
+import { DAY_NUMBERS, DAY_NAMES, LEGS, LEG_NAMES, dayCounts, shortTime, personKey, normText, seatsOf, noteColorOf } from './model.js';
 import { escapeHtml } from '../core/html.js';
 import { dateOfDay, mdLabel } from '../core/dates.js';
 
@@ -80,7 +80,7 @@ export function createBoard({ stage, board, handlers, layout = 'auto' }) {
     html.push('<div class="vanname notes"><span>連絡</span></div>');
     DAY_NUMBERS.forEach(day => {
       const notes = week.days[day].notes;
-      html.push(`<div class="notecell${changedNote.has(day) ? ' changed' : ''}" data-day="${day}" style="${wide ? 'grid-column:span 2' : ''}">${notes.map(n => `<p>${escapeHtml(n)}</p>`).join('') || '<p class="none">＋ 連絡</p>'}</div>`);
+      html.push(`<div class="notecell${changedNote.has(day) ? ' changed' : ''}" data-day="${day}" style="${wide ? 'grid-column:span 2' : ''}">${notes.map(n => { const c = noteColorOf(week.days[day], n); return `<p${c ? ` class="nc-${c}"` : ''}>${escapeHtml(n)}</p>`; }).join('') || '<p class="none">＋ 連絡</p>'}</div>`);
     });
 
     board.innerHTML = html.join('');

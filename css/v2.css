@@ -114,6 +114,12 @@ input,textarea{-webkit-user-select:text;user-select:text;}
 .notecell{padding:.2em .4em;font-size:.86em;line-height:1.45;cursor:pointer;background:#fffaf0;}
 .notecell p{margin:0;}
 .notecell p.none{color:#c9c2b0;}
+.nc-red{color:#d0201a;}.nc-blue{color:#1d5fc4;}.nc-green{color:#1f8a3a;}
+.notecolors{margin-top:8px;}
+.notecolors .nline{display:flex;align-items:center;gap:6px;padding:4px 0;border-top:1px solid #eee5d3;}
+.notecolors .nline .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.notecolors .nline button{min-width:2.6em;padding:.35em .5em;border:2px solid #d8d0bf;border-radius:8px;background:#fff;font-weight:bold;}
+.notecolors .nline button.on{border-color:#333;background:#f3efe4;}
 .notecell.changed{background:#fff0b8;}
 
 /* ---------- はずす所（ひっぱっている間だけ出る） ---------- */
